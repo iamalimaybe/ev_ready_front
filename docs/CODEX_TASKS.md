@@ -70,6 +70,18 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 
 ## Completed
 
+### 2026-05-28 - Live Frontend Deployment Documentation
+
+Updated README deployment notes with the live frontend URL, production API URL, production
+`VITE_API_BASE_URL` build value, Caddy reverse proxy state, Cloudflare/Hetzner context, backend repo
+runbook pointer, and a short redeploy reminder for pulling `main`, rebuilding the frontend
+container, and verifying the site plus API-backed pages.
+
+Changed files:
+
+- `README.md`
+- `docs/CODEX_TASKS.md`
+
 ### 2026-05-28 - Frontend Docker Deployment Setup
 
 Added a minimal multi-stage frontend Docker setup that builds the Vite app with
