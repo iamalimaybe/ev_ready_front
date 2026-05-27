@@ -70,6 +70,35 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 
 ## Completed
 
+### 2026-05-28 - Frontend Docker Deployment Setup
+
+Added a minimal multi-stage frontend Docker setup that builds the Vite app with
+`VITE_API_BASE_URL` and serves `dist` through Nginx. Added local-only production compose binding,
+Docker ignore rules, a non-secret production env example, and README deployment notes for the
+`https://api.evready.pk` API URL and future reverse proxy/HTTPS exposure.
+
+Changed files:
+
+- `Dockerfile`
+- `nginx.conf`
+- `.dockerignore`
+- `docker-compose.prod.yml`
+- `.env.prod.example`
+- `.gitignore`
+- `README.md`
+- `docs/CODEX_TASKS.md`
+
+### 2026-05-27 - README Branch Strategy Documentation
+
+Added a small README branch strategy section documenting `main`, `develop`, short-lived
+`feature/*` branches, the PR flow into production, direct-commit guidance for `main`, and example
+deployment-related feature branch names.
+
+Changed files:
+
+- `README.md`
+- `docs/CODEX_TASKS.md`
+
 ### 2026-05-27 - Remove Obsolete Vehicle and Charger Dummy Data
 
 Removed stale frontend dummy vehicle records from `src/data/vehicles.ts` while keeping the reusable
