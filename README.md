@@ -87,11 +87,36 @@ Build for production:
 npm run build
 ```
 
+## Branch Strategy
+
+- `main` is the production-ready branch.
+- `develop` is the integration/testing branch.
+- All future work should use short-lived `feature/*` branches created from `develop`.
+- Pull request flow:
+  - `feature/*` -> `develop`
+  - `develop` -> `main` for production deployment
+- Avoid committing directly to `main` after initial setup.
+- Keep deployment-related work in focused feature branches, for example:
+  - `feature/deployment-plan`
+  - `feature/docker-deployment`
+  - `feature/frontend-prod-config`
+
 ## Deployment Notes
 
 Production frontend configuration should come from deployment environment variables. `VITE_*`
 variables are bundled into the frontend output, so they must never contain secrets. Deploy only the
 Vite build output, such as `dist/`, and do not expose the full repository as a public web directory.
+
+For the production VPS build, set the frontend API URL to `https://api.evready.pk` through the
+Docker build argument or `.env.prod` file:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+The included production compose file serves the built frontend through Nginx and binds it only to
+`127.0.0.1:3000` for now. Public access to `https://evready.pk` should be exposed later through the
+separate reverse proxy and HTTPS setup.
 
 ## Development Status
 
