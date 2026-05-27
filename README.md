@@ -107,6 +107,25 @@ Production frontend configuration should come from deployment environment variab
 variables are bundled into the frontend output, so they must never contain secrets. Deploy only the
 Vite build output, such as `dist/`, and do not expose the full repository as a public web directory.
 
+## Production Deployment
+
+The production frontend is live at `https://evready.pk` and uses the production API at
+`https://api.evready.pk`. The frontend production build is created with
+`VITE_API_BASE_URL=https://api.evready.pk`; because Vite bundles `VITE_*` values into the frontend
+output, these values must never contain secrets.
+
+The frontend repo is deployed from `main` on the Hetzner VPS through Docker Compose. The frontend
+container is bound to `127.0.0.1:3000`, and Caddy serves public HTTPS for `evready.pk` while reverse
+proxying to that local frontend container. `www.evready.pk` redirects to `evready.pk`, with DNS
+managed through Cloudflare. The fuller backend, database, and server deployment runbook lives in the
+backend repo docs.
+
+Redeploy reminder:
+
+- Keep the production VPS clone on `main`.
+- After pulling new `main` changes, rebuild the frontend container.
+- Verify `https://evready.pk` and API-backed pages after redeploy.
+
 For the production VPS build, set the frontend API URL to `https://api.evready.pk` through the
 Docker build argument or `.env.prod` file:
 
@@ -115,8 +134,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
 The included production compose file serves the built frontend through Nginx and binds it only to
-`127.0.0.1:3000` for now. Public access to `https://evready.pk` should be exposed later through the
-separate reverse proxy and HTTPS setup.
+`127.0.0.1:3000`. Public access to `https://evready.pk` is handled by the VPS Caddy reverse proxy.
 
 ## Development Status
 
