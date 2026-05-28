@@ -69,6 +69,7 @@ const selectInputClass = numberInputClass;
 
 export default function CostComparison() {
   const [formValues, setFormValues] = useState<FormValues>(initialFormValues);
+  const [copyMessage, setCopyMessage] = useState<string | undefined>();
 
   const validationMessages = useMemo(
     () =>
@@ -112,6 +113,7 @@ export default function CostComparison() {
     : 'Estimated yearly savings';
 
   function updateFormValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
+    setCopyMessage(undefined);
     setFormValues((currentValues) => ({
       ...currentValues,
       [key]: value,
@@ -119,7 +121,22 @@ export default function CostComparison() {
   }
 
   function updateVehicleType(vehicleType: HomeChargingVehicleType) {
+    setCopyMessage(undefined);
     setFormValues(vehicleDefaults[vehicleType]);
+  }
+
+  async function copyResultSummary() {
+    if (!result || hasValidationErrors || !navigator.clipboard) {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(createResultSummary(formValues, result));
+      setCopyMessage('Result summary copied.');
+    } catch {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+    }
   }
 
   return (
@@ -262,6 +279,19 @@ export default function CostComparison() {
                 driving style, tyre condition, charging losses, electricity tariff slabs, petrol
                 price changes, and maintenance.
               </p>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={copyResultSummary}
+                  className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+                >
+                  Copy result summary
+                </button>
+                {copyMessage ? (
+                  <p className="text-sm leading-6 text-slate-700">{copyMessage}</p>
+                ) : null}
+              </div>
             </div>
             )}
           </section>
@@ -362,4 +392,57 @@ function formatCurrency(value: number): string {
 
 function formatNumber(value: number): string {
   return Number.isFinite(value) ? numberFormatter.format(value) : '-';
+}
+
+type CopyableResult = {
+  vehicleType: HomeChargingVehicleType;
+  monthlyKm: number;
+  evKwhPerKm: number;
+  monthlyKwh: number;
+  monthlyEvCost: number;
+  litresNeeded: number;
+  monthlyPetrolCost: number;
+  monthlySavings: number;
+  yearlySavings: number;
+};
+
+function createResultSummary(formValues: FormValues, result: CopyableResult): string {
+  const monthlySavingsLine =
+    result.monthlySavings >= 0
+      ? `Estimated monthly savings: ${formatSummaryCurrency(result.monthlySavings)}`
+      : `Estimated extra monthly cost: ${formatSummaryCurrency(Math.abs(result.monthlySavings))}`;
+  const yearlySavingsLine =
+    result.yearlySavings >= 0
+      ? `Estimated yearly savings: ${formatSummaryCurrency(result.yearlySavings)}`
+      : `Estimated extra yearly cost: ${formatSummaryCurrency(Math.abs(result.yearlySavings))}`;
+
+  return [
+    'EVReady Pakistan - EV vs Petrol Cost Estimate',
+    '',
+    `Vehicle type: ${result.vehicleType}`,
+    `Daily travel: ${formatSummaryNumber(formValues.dailyKm)} km`,
+    `Days per month: ${formatSummaryNumber(formValues.daysPerMonth)}`,
+    `Monthly distance: ${formatSummaryNumber(result.monthlyKm)} km`,
+    `Petrol price used: ${formatSummaryCurrency(formValues.petrolPricePerLitre)} per litre`,
+    `Petrol average used: ${formatSummaryNumber(formValues.petrolAverageKmPerLitre)} km/litre`,
+    `EV range used: ${formatSummaryNumber(formValues.rangePerFullChargeKm)} km per full charge`,
+    `Electricity unit price used: ${formatSummaryCurrency(formValues.electricityUnitPrice)} per kWh/unit`,
+    `Estimated EV efficiency: ${formatSummaryNumber(result.evKwhPerKm)} kWh/km`,
+    `Estimated monthly EV electricity usage: ${formatSummaryNumber(result.monthlyKwh)} kWh`,
+    `Estimated monthly EV cost: ${formatSummaryCurrency(result.monthlyEvCost)}`,
+    `Estimated petrol litres required: ${formatSummaryNumber(result.litresNeeded)} L`,
+    `Estimated monthly petrol cost: ${formatSummaryCurrency(result.monthlyPetrolCost)}`,
+    monthlySavingsLine,
+    yearlySavingsLine,
+    '',
+    'This is a quick estimate, not a guarantee. Actual cost can vary with traffic, load, driving style, tyre condition, charging losses, electricity tariff slabs, petrol price changes, and maintenance.',
+  ].join('\n');
+}
+
+function formatSummaryCurrency(value: number): string {
+  return Number.isFinite(value) ? `Rs ${numberFormatter.format(Math.round(value))}` : '-';
+}
+
+function formatSummaryNumber(value: number): string {
+  return Number.isFinite(value) ? numberFormatter.format(Math.round(value)) : '-';
 }

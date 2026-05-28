@@ -50,6 +50,10 @@ const currencyFormatter = new Intl.NumberFormat('en-PK', {
   currency: 'PKR',
 });
 
+const numberFormatter = new Intl.NumberFormat('en-PK', {
+  maximumFractionDigits: 1,
+});
+
 const numberInputClass =
   'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
 
@@ -79,6 +83,7 @@ export default function SuitabilityCalculator() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isVehicleLoading, setIsVehicleLoading] = useState(true);
   const [vehicleErrorMessage, setVehicleErrorMessage] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | undefined>();
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -202,10 +207,25 @@ export default function SuitabilityCalculator() {
       : 'Estimated monthly savings';
 
   function updateFormValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
+    setCopyMessage(undefined);
     setFormValues((currentValues) => ({
       ...currentValues,
       [key]: value,
     }));
+  }
+
+  async function copyResultSummary() {
+    if (!result || hasValidationErrors || !selectedVehicle || !navigator.clipboard) {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(createResultSummary(formValues, selectedVehicle, result));
+      setCopyMessage('Result summary copied.');
+    } catch {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+    }
   }
 
   return (
@@ -402,6 +422,19 @@ export default function SuitabilityCalculator() {
                 )}
               </p>
 
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={copyResultSummary}
+                  className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+                >
+                  Copy result summary
+                </button>
+                {copyMessage ? (
+                  <p className="text-sm leading-6 text-slate-700">{copyMessage}</p>
+                ) : null}
+              </div>
+
               <p className="text-xs leading-5 text-slate-600">
                 This is a quick estimate, not a guarantee. Monthly EV cost uses the electricity
                 unit price you entered and can vary with traffic, charging access, tariff slabs,
@@ -530,4 +563,71 @@ function ResultRow({ label, value }: ResultRowProps) {
 
 function formatCurrency(value: number): string {
   return Number.isFinite(value) ? currencyFormatter.format(value) : '-';
+}
+
+type CopyableResult = {
+  evCost: {
+    monthlyEvCost: number;
+  };
+  petrolCost: {
+    monthlyPetrolCost: number;
+  };
+  monthlySavings: number;
+  suitability: {
+    score: number;
+    verdict: SuitabilityVerdict;
+  };
+};
+
+function createResultSummary(
+  formValues: FormValues,
+  selectedVehicle: Vehicle,
+  result: CopyableResult,
+): string {
+  const savingsLine =
+    result.monthlySavings >= 0
+      ? `Estimated monthly savings: ${formatSummaryCurrency(result.monthlySavings)}`
+      : `Estimated extra monthly cost: ${formatSummaryCurrency(Math.abs(result.monthlySavings))}`;
+
+  return [
+    'EVReady Pakistan - EV Suitability Estimate',
+    '',
+    `City: ${formValues.city}`,
+    `Selected EV: ${selectedVehicle.brand} ${selectedVehicle.model}`,
+    `Daily travel: ${formatSummaryNumber(formValues.dailyKm)} km`,
+    `Days per month: ${formatSummaryNumber(formValues.daysPerMonth)}`,
+    `Home charging: ${formValues.hasHomeCharging ? 'Yes' : 'No'}`,
+    `Solar at home: ${formValues.hasSolar ? 'Yes' : 'No'}`,
+    `Intercity trips: ${formatIntercityFrequency(formValues.intercityFrequency)}`,
+    `Electricity unit price used: ${formatSummaryCurrency(formValues.electricityUnitPrice)} per kWh/unit`,
+    `Petrol price used: ${formatSummaryCurrency(formValues.petrolPricePerLitre)} per litre`,
+    `Petrol average used: ${formatSummaryNumber(formValues.petrolAverageKmPerLitre)} km/litre`,
+    `Estimated monthly EV cost: ${formatSummaryCurrency(result.evCost.monthlyEvCost)}`,
+    `Estimated monthly petrol cost: ${formatSummaryCurrency(result.petrolCost.monthlyPetrolCost)}`,
+    savingsLine,
+    `Suitability score: ${result.suitability.score}/100`,
+    `Verdict: ${verdictLabels[result.suitability.verdict]}`,
+    '',
+    'This is a quick estimate, not a guarantee. Monthly EV cost uses the electricity unit price entered and can vary with traffic, charging access, tariff slabs, battery health, and road conditions. Verify vehicle specs and prices before purchase.',
+  ].join('\n');
+}
+
+function formatSummaryCurrency(value: number): string {
+  return Number.isFinite(value) ? `Rs ${numberFormatter.format(Math.round(value))}` : '-';
+}
+
+function formatSummaryNumber(value: number): string {
+  return Number.isFinite(value) ? numberFormatter.format(Math.round(value)) : '-';
+}
+
+function formatIntercityFrequency(value: IntercityFrequency): string {
+  if (value === 'none') {
+    return 'Almost never';
+  }
+
+  if (value === 'frequent') {
+    return 'Often';
+  }
+
+  return 'Sometimes';
 }

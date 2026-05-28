@@ -74,8 +74,38 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Frontend technical SEO foundation now includes truthful default metadata, Open Graph/Twitter
   preview metadata, minimal WebSite JSON-LD, and static `robots.txt` plus `sitemap.xml` assets.
 - Cloudflare Web Analytics beacon is installed in `index.html` through the JS snippet.
+- Cost Comparison and Home Charging Cost Estimator can now copy plain-text estimate summaries.
+- Solar EV Charging Estimator, Suitability Calculator, and Route Feasibility can now copy
+  plain-text estimate summaries.
 
 ## Completed
+
+### 2026-05-28 - Copy Summaries for Remaining Estimators
+
+Added plain-text copy result summaries to Solar EV Charging Estimator, Suitability Calculator, and
+Route Feasibility, following the existing calculator copy pattern. Each result card now has a copy
+button, success/failure message handling, key user inputs and outputs, and estimate-not-guarantee
+wording. No formulas, routes, APIs, dependencies, or shared abstractions were changed.
+
+Changed files:
+
+- `src/pages/SolarEvChargingEstimator.tsx`
+- `src/pages/SuitabilityCalculator.tsx`
+- `src/pages/RouteFeasibility.tsx`
+- `docs/CODEX_TASKS.md`
+
+### 2026-05-28 - Copy Summaries for Cost and Home Charging Estimates
+
+Added plain-text copy result summaries to Cost Comparison and Home Charging Cost Estimator,
+following the existing EV Bike Savings Calculator pattern. Each result card now has a copy button,
+success/failure message handling, key user inputs and outputs, and estimate-not-guarantee wording.
+No calculator formulas, routes, APIs, dependencies, or shared abstractions were changed.
+
+Changed files:
+
+- `src/pages/CostComparison.tsx`
+- `src/pages/HomeChargingCostEstimator.tsx`
+- `docs/CODEX_TASKS.md`
 
 ### 2026-05-28 - Cloudflare Web Analytics Beacon
 
