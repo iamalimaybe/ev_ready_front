@@ -67,8 +67,62 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   OS files, and IDE files out of Git while keeping project documentation tracked.
 - Obsolete frontend dummy vehicle and charger records have been removed now that catalog and
   directory data load from backend APIs.
+- Frontend trust wording now frames EVReady Pakistan as a free Pakistan-focused EV savings and
+  decision utility, treats source-confidence badges as data-source labels rather than field
+  verification, clarifies charger status as non-live, and avoids guaranteed follow-up wording in
+  Get Help.
+- Frontend technical SEO foundation now includes truthful default metadata, Open Graph/Twitter
+  preview metadata, minimal WebSite JSON-LD, and static `robots.txt` plus `sitemap.xml` assets.
+- Cloudflare Web Analytics beacon is installed in `index.html` through the JS snippet.
 
 ## Completed
+
+### 2026-05-28 - Cloudflare Web Analytics Beacon
+
+Added the Cloudflare Web Analytics JS snippet to `index.html` near the end of the body before the
+closing `</body>` tag. No analytics abstraction, dependencies, routes, APIs, sitemap, robots, or
+app behavior were changed.
+
+Changed files:
+
+- `index.html`
+- `docs/CODEX_TASKS.md`
+
+### 2026-05-28 - Frontend Technical SEO Foundation
+
+Added truthful default SEO metadata to `index.html`, including title, description, canonical URL,
+Open Graph metadata, Twitter card metadata, and minimal WebSite JSON-LD without product, pricing,
+ratings, live charger availability, or complete-coverage claims. Added static Vite public assets for
+`robots.txt` and `sitemap.xml` with current public frontend routes only. Documented that Google
+Search Console and Bing Webmaster Tools setup are external/manual follow-up steps, not code changes
+in this task.
+
+Changed files:
+
+- `index.html`
+- `public/robots.txt`
+- `public/sitemap.xml`
+- `README.md`
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
+
+### 2026-05-28 - Frontend Trust and Source-Confidence Wording Polish
+
+Tightened homepage positioning around EVReady Pakistan as a free Pakistan-focused EV savings and
+practical decision utility for bikes and cars. Updated Vehicle Catalog and Charger Directory badge
+labels and helper text so source-confidence language does not imply EVReady physically audited
+vehicles or chargers. Clarified that charger status is reported/non-live and that users should
+verify connector support, pricing, access, and availability before travel. Softened Get Help copy so
+submission does not imply a guaranteed callback or service outcome.
+
+Changed files:
+
+- `src/pages/Home.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/LeadCapturePlaceholder.tsx`
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
 
 ### 2026-05-28 - Live Frontend Deployment Documentation
 

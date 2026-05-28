@@ -62,7 +62,7 @@ const featureCards = [
     category: 'Supporting tools',
     title: 'Charger Directory',
     description:
-      'Review charger entries by city, connector, charging type, and reported status.',
+      'Review charger entries by city, connector, charging type, and reported non-live status.',
     to: '/chargers',
     action: 'View chargers',
   },
@@ -77,7 +77,7 @@ const featureCards = [
 ];
 
 const usageSteps = [
-  'Start with Suitability Calculator.',
+  'Start with bike savings or car suitability based on what you want to buy.',
   'Compare monthly EV vs petrol cost.',
   'Check route feasibility for intercity use.',
   'Review vehicle and charger details, then verify before purchase or travel.',
@@ -85,16 +85,21 @@ const usageSteps = [
 
 export default function Home() {
   return (
-    <PageShell eyebrow="EVReady Pakistan MVP" title="Find out if an EV is practical for you in Pakistan">
+    <PageShell
+      eyebrow="Free Pakistan EV utility"
+      title="Find out if an EV is practical for you in Pakistan"
+    >
       <div className="space-y-8">
         <div className="space-y-4">
           <p className="max-w-3xl text-lg leading-8 text-slate-700">
-            Estimate EV running cost, route feasibility, charging access, and vehicle fit using
-            Pakistan-focused tools and backend-backed catalog data.
+            EVReady Pakistan is a free EV savings and practical decision utility for bikes and
+            cars. Estimate running cost, home charging cost, route feasibility, charging access,
+            and vehicle fit using Pakistan-focused tools and catalog data.
           </p>
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            Calculator outputs are estimates. Verify vehicle specs, prices, charger details, and
-            availability before purchase or travel decisions.
+            Calculator outputs are estimates and catalog/directory data may be incomplete. Verify
+            vehicle specs, prices, charger details, and availability before purchase or travel
+            decisions.
           </div>
         </div>
 
