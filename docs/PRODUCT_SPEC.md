@@ -14,7 +14,10 @@ The product helps people estimate whether switching from petrol to an EV bike or
 
 EVReady Pakistan should be a lightweight public utility, not a heavy SaaS product. The primary experience should be calculators, practical decision support, shareable results, and simple guides.
 
-The product should cover both EV bikes and EV cars. EV bike savings, home charging cost, solar EV charging, and quick bike/car cost comparison are already implemented in the frontend using user-entered assumptions. Vehicle, charger, and lead data should come from a separate backend repo for the first backend-backed release.
+The product should cover both EV bikes and EV cars. EV bike savings, home charging cost, solar EV
+charging, and quick bike/car cost comparison are implemented in the frontend using user-entered
+assumptions. Vehicle Catalog, Charger Directory, Get Help, and Contact Us are backend-backed in the
+deployed production app.
 
 ## Target Audience
 
@@ -85,48 +88,38 @@ Combines daily range, home charging access, city support, savings, solar availab
 
 ## Planned Primary Tools
 
-### Vehicle Catalog Bike/Car Segregation and Advanced Filters
+### Admin and Data-Management Planning
 
-The next catalog task should make the Vehicle Catalog clearly support both EV bikes and EV cars.
-
-Scope:
-
-- Add EV bike entries to demo vehicle data as sample data.
-- Let users filter/select Bike or Car clearly.
-- Keep listings category-aware so bike and car assumptions are not mixed.
-- Add price filtering.
-- Add range filtering.
-- Keep the existing mobile layout usable.
-- Do not add ratings/reviews in this task.
-
-### Backend API Integration for Frontend
-
-Integrate this frontend with backend APIs from a separate backend repo.
+The next backend-facing direction is planning how vehicle, charger, lead, and contact data should
+be managed safely. This is planning only; admin implementation should remain deferred until
+authentication, access control, auditability, and operational ownership are defined.
 
 Scope:
 
-- Vehicle Catalog consumes vehicle data from backend.
-- Charger Directory consumes charger data from backend.
-- Get Help / lead capture submissions are stored through backend.
-- Vehicle API records include `verificationStatus`, and charger API records are expected to include it, so the frontend can show source-confidence labels without implying EVReady personally audited the data.
-- Calculators can remain frontend-side where users enter values manually.
-- Demo-data UI wording should be removed after backend integration and replaced with "verify before purchase/travel" style guidance.
+- Plan admin/data-management responsibilities in the backend repo and docs.
+- Keep public frontend calculators frontend-side where users manually enter assumptions.
+- Do not add admin UI, authentication, payments, bookings, or dealer-management flows in this
+  frontend repo as part of this planning step.
+- Keep ratings/reviews deferred until persistence, moderation, and spam handling are planned.
 
-Backend notes:
+### Charger Data Strategy and Feedback Planning
 
-- Backend implementation lives in its own repo and docs.
-- No admin UI is required for the first backend release unless planned later.
-- Vehicle and charger data may initially be managed through backend DB seed/manual data entry.
+Plan how charger data will be collected, source-checked, updated, and shown without misleading
+users. User feedback/reporting can be considered later, but should not be implemented until the data
+strategy is clear.
+
+Scope:
+
+- Define charger source-confidence meaning and update cadence.
+- Avoid implying live charger availability or guaranteed access.
+- Keep verify-before-travel guidance visible.
+- Consider feedback/reporting later, after ownership and moderation needs are clear.
 
 ### Vehicle Ratings and Reviews System
 
 Ratings and reviews are a future post-first-release feature. Users may later rate vehicles from 1 to 5 stars and add text reviews. Listing cards should later show rating count and average rating with max 1 decimal place, and a vehicle detail view or modal should show individual reviews.
 
 This feature requires backend persistence, moderation/spam handling, and a backend-backed data flow. It should not be built as static fake data for the first release.
-
-### Charger Data Strategy and Feedback Planning
-
-Plan how charger data will be collected, verified, updated, and shown without misleading users. User feedback/reporting can be considered later, but should not be implemented until the data strategy is clear.
 
 ## Supporting Tools
 
@@ -136,7 +129,7 @@ Estimates whether a vehicle can complete a route with available range and reserv
 
 First-release behavior:
 
-- Use conservative route examples until backend-backed charger/route data is reliable.
+- Use conservative route examples until backend-backed charger/route data strategy is reliable.
 - Do not imply route or charger reliability without verified data.
 - Do not use an external map API.
 - Show feasibility as an estimate, not a guarantee.
@@ -151,7 +144,8 @@ Vehicle API responses include `verificationStatus`, and catalog cards should sho
 
 ### Charger Directory
 
-Shows backend-backed public charger information when available. This supports charging confidence but must not become the product's main identity.
+Shows backend-backed public charger information in production. This supports charging confidence
+but must not become the product's main identity.
 
 First release must not claim live charger status unless the backend has a reliable live source and update process.
 
@@ -206,17 +200,18 @@ Outputs include:
 
 ## Frontend/Backend Data Approach
 
-The frontend currently uses local sample data while backend work is planned separately. The first backend-backed release should consume backend APIs for vehicles, chargers, and Get Help lead submissions.
+The deployed production frontend consumes backend APIs for vehicles, chargers, charger city/type
+options, Get Help submissions, and Contact Us submissions.
 
 Requirements:
 
 - Keep calculator logic frontend-side where users manually enter values, unless a future task needs shared server-side assumptions.
-- Consume backend APIs for Vehicle Catalog and Charger Directory once available.
-- Store Get Help / lead capture submissions through backend once available.
+- Continue consuming backend APIs for Vehicle Catalog and Charger Directory.
+- Continue storing Get Help / lead capture submissions and Contact Us submissions through backend.
 - Keep backend implementation and backend docs in a separate repo.
 - Backend vehicle and charger records may initially be managed through DB seed/manual data entry.
 - Display frontend source-confidence badges from `verificationStatus` on vehicle and charger cards, treating missing values as `UNVERIFIED`.
-- Remove demo-data UI wording after backend integration and replace it with clear "verify before purchase/travel" guidance.
+- Keep clear "verify before purchase/travel" guidance.
 - Keep assumptions visible.
 - Avoid implying data is complete, live, or verified.
 - Prefer simple data structures that are easy to replace later.
@@ -244,14 +239,23 @@ The MVP is successful if a user can:
 - Understand basic solar charging assumptions.
 - Enter their usage pattern and understand practical ownership fit.
 - Check whether common routes look feasible.
-- Browse a backend-backed vehicle catalog once API integration is complete.
+- Browse a backend-backed vehicle catalog.
 - See charger coverage without mistaking it for live data.
 - Understand that ratings/reviews are not part of first-release scope.
 
-## Next Product Milestone: Backend API Integration
+## Current Production State and Next Direction
 
-The next milestone is to integrate this frontend with backend APIs from the separate backend repo for Vehicle Catalog, Charger Directory, and Get Help lead submission.
+The frontend and backend are deployed to production and in sync:
 
-Immediate next task:
+- Frontend: `https://evready.pk`
+- Backend API: `https://api.evready.pk`
+- Vehicle Catalog loads backend vehicle data.
+- Charger Directory loads backend charger data and charger city/type options.
+- Get Help submits to backend.
+- Contact Us submits to backend.
+- Trust wording, technical SEO, Cloudflare Web Analytics, and copy/share summaries for
+  calculators/estimators are complete.
 
-- Integrate backend APIs for Vehicle Catalog, Charger Directory, and Get Help lead submission
+The next direction is cautious planning for admin/data-management and charger data strategy. Admin
+implementation remains deferred until authentication, access control, moderation, and operational
+ownership are planned.

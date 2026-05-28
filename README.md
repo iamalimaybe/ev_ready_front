@@ -13,11 +13,14 @@ This frontend repo remains:
 - TypeScript
 - Tailwind CSS
 
-First release now expects a separate backend repo for shared data and submissions:
+The deployed production frontend integrates with the separate backend repo for shared data and
+submissions:
 
 - Vehicle Catalog data from backend APIs
 - Charger Directory data from backend APIs
+- Charger city and charger type options from backend APIs
 - Get Help / lead capture submissions stored through backend
+- Contact Us submissions stored through backend
 - Calculators can remain frontend-side where users enter values manually
 - Backend data may initially be managed through DB seed/manual data entry
 - No authentication
@@ -35,21 +38,24 @@ First release now expects a separate backend repo for shared data and submission
 4. Solar EV Charging Estimator
 5. EV car suitability / ownership fit calculator
 6. Route feasibility estimator
-7. Vehicle catalog, currently using local sample data until backend integration
-8. Charger directory, currently using local sample data until backend integration
+7. Vehicle catalog using backend vehicle data
+8. Charger directory using backend charger data and backend city/type options
 9. Static guides/content
-10. Lead capture placeholder CTA
+10. Get Help lead capture submission
+11. Contact Us submission
 
 Cost Comparison now uses manual Bike/Car inputs instead of selecting vehicles from the catalog.
-Vehicle, charger, and lead data should move to backend APIs before the first backend-backed release.
-After backend integration, demo-data UI wording should be replaced with verify-before-purchase/travel guidance.
+Vehicle, charger, Get Help, and Contact Us flows are backend-backed in production. Catalog and
+directory wording should continue to ask users to verify vehicle details before purchase and charger
+details before travel.
 
 ## Planned Next Work
 
-1. Integrate backend APIs for Vehicle Catalog, Charger Directory, and Get Help lead submission.
-2. Plan backend/data flow details in the separate backend repo and docs.
-3. Plan charger data collection, verification, update, and feedback strategy.
-4. Defer vehicle ratings and reviews until after first release and backend persistence/moderation.
+1. Plan admin and data-management needs in the backend repo, including authentication and access
+   control before any admin UI is implemented.
+2. Plan charger data collection, source confidence, update cadence, and feedback strategy.
+3. Keep ratings and reviews deferred until persistence, moderation, and spam handling are planned.
+4. Keep public calculators frontend-side where users manually enter assumptions.
 
 ## Product Principles
 
@@ -145,4 +151,9 @@ The included production compose file serves the built frontend through Nginx and
 
 ## Development Status
 
-The React + Vite + TypeScript + Tailwind CSS frontend MVP is in place with calculator pages, guides, and supporting catalog/directory pages. Local sample data remains in the frontend until backend APIs are integrated. The next product milestone is connecting Vehicle Catalog, Charger Directory, and Get Help lead submission to the separate backend repo.
+The React + Vite + TypeScript + Tailwind CSS frontend is deployed at `https://evready.pk` and uses
+the production API at `https://api.evready.pk`. Vehicle Catalog, Charger Directory, Get Help, and
+Contact Us are backend-backed in production. Frontend trust wording, technical SEO, Cloudflare Web
+Analytics, and copy/share summaries for calculators and estimators are complete. The next planning
+direction is admin/data-management strategy and charger data strategy, without adding admin
+implementation in this frontend repo.
