@@ -50,7 +50,7 @@ const toApiError = (response: Response, payload: unknown, path: string) => {
   });
 };
 
-const request = async <T>(method: 'GET' | 'POST', path: string, body?: JsonBody): Promise<T> => {
+const request = async <T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: JsonBody): Promise<T> => {
   const response = await fetch(buildAdminUrl(path), {
     method,
     credentials: 'include',
@@ -70,4 +70,7 @@ const request = async <T>(method: 'GET' | 'POST', path: string, body?: JsonBody)
 export const adminApiClient = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: JsonBody) => request<T>('POST', path, body),
+  patch: <T>(path: string, body?: JsonBody) => request<T>('PATCH', path, body),
+  updateLeadStatus: <T>(leadId: number | string, leadStatus: string) =>
+    request<T>('PATCH', `/api/v1/admin/leads/${leadId}/status`, { leadStatus }),
 };

@@ -54,6 +54,12 @@ type PageState<T> = {
 type AdminSection = 'leads' | 'contacts';
 
 const PAGE_SIZE = 20;
+const LEAD_STATUS_OPTIONS = [
+  { value: 'NEW', label: 'New' },
+  { value: 'CONTACTED', label: 'Contacted' },
+  { value: 'QUALIFIED', label: 'Qualified' },
+  { value: 'CLOSED', label: 'Closed' },
+] as const;
 
 const emptyPage = <T,>(page = 0): PageState<T> => ({
   items: [],
@@ -114,6 +120,23 @@ const formatDate = (value?: string | null) => {
   }).format(date);
 };
 
+const formatStatusLabel = (value?: string | null) => {
+  if (!value) {
+    return 'Not listed';
+  }
+
+  const option = LEAD_STATUS_OPTIONS.find((status) => status.value === value);
+  if (option) {
+    return option.label;
+  }
+
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
 const hasNextPage = <T,>(pageState: PageState<T>) => {
   if (typeof pageState.totalPages === 'number') {
     return pageState.page + 1 < pageState.totalPages;
@@ -133,6 +156,9 @@ const AdminDashboard = () => {
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState<number | string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -234,6 +260,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleLeadStatusChange = async (lead: Lead, nextStatus: string) => {
+    if (lead.leadStatus === nextStatus) {
+      return;
+    }
+
+    setUpdatingLeadId(lead.id);
+    setStatusMessage(null);
+    setStatusError(null);
+
+    try {
+      const updatedLead = await adminApiClient.updateLeadStatus<Lead>(lead.id, nextStatus);
+      setLeadPage((current) => ({
+        ...current,
+        items: current.items.map((item) => (item.id === updatedLead.id ? updatedLead : item)),
+      }));
+      setSelectedLead((current) => (current?.id === updatedLead.id ? updatedLead : current));
+      setStatusMessage(`Lead ${updatedLead.id} status updated to ${formatStatusLabel(updatedLead.leadStatus)}.`);
+    } catch {
+      setStatusError('Lead status could not be updated. Please try again.');
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  };
+
   if (authState === 'checking') {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-12">
@@ -312,6 +362,8 @@ const AdminDashboard = () => {
             onRefresh={() => void loadLeads(leadPage.page)}
           />
           {leadPage.error ? <Alert message={leadPage.error} /> : null}
+          {statusError ? <Alert message={statusError} /> : null}
+          {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -334,7 +386,28 @@ const AdminDashboard = () => {
                     <td className="px-4 py-3">{formatValue(lead.phone)}</td>
                     <td className="px-4 py-3">{formatValue(lead.city)}</td>
                     <td className="px-4 py-3">{formatValue(lead.interestType)}</td>
-                    <td className="px-4 py-3">{formatValue(lead.leadStatus)}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        aria-label={`Update lead ${lead.id} status`}
+                        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        disabled={updatingLeadId === lead.id}
+                        onChange={(event) => void handleLeadStatusChange(lead, event.target.value)}
+                        value={lead.leadStatus ?? ''}
+                      >
+                        {!lead.leadStatus ? <option value="">Not listed</option> : null}
+                        {lead.leadStatus && !LEAD_STATUS_OPTIONS.some((status) => status.value === lead.leadStatus) ? (
+                          <option value={lead.leadStatus}>{formatStatusLabel(lead.leadStatus)}</option>
+                        ) : null}
+                        {LEAD_STATUS_OPTIONS.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                      {updatingLeadId === lead.id ? (
+                        <p className="mt-1 text-xs text-slate-500">Updating...</p>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3">{formatDate(lead.createdAt)}</td>
                     <td className="px-4 py-3">
                       <button className="font-semibold text-emerald-700" onClick={() => void handleViewLead(lead)}>
@@ -539,6 +612,10 @@ const DetailsPanel = ({ detailError, isLoading, onClose, rows, title }: DetailsP
 
 const Alert = ({ message }: { message: string }) => (
   <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+);
+
+const SuccessMessage = ({ message }: { message: string }) => (
+  <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>
 );
 
 const EmptyState = ({ label }: { label: string }) => <p className="px-4 py-6 text-sm text-slate-500">{label}</p>;

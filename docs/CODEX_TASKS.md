@@ -82,8 +82,23 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Frontend documentation now reflects the deployed production state with backend-backed catalog,
   charger directory, Get Help, and Contact Us flows.
 - Minimal protected read-only Admin UI is available for internal lead/contact visibility.
+- Admin leads can now update lead status from the protected Admin UI; contact submissions remain
+  read-only.
 
 ## Completed
+
+### 2026-05-28 - Admin Lead Status Updates
+
+Added protected Admin UI support for updating Get Help lead status through the backend
+`PATCH /api/v1/admin/leads/{id}/status` endpoint. Lead rows now show a small status dropdown,
+successful updates replace the local row/detail state with the backend response, and failures show a
+safe inline error. Contact submissions remain read-only.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-28 - Admin Pre-Deployment Cleanup
 
