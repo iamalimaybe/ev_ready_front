@@ -108,10 +108,10 @@ const backendSortValues: Record<SortOption, string> = {
 };
 
 const verificationStatusLabels: Record<VehicleVerificationStatus, string> = {
-  OFFICIAL: 'Official source',
-  DEALER_CONFIRMED: 'Dealer confirmed',
-  USER_REPORTED: 'User reported',
-  UNVERIFIED: 'Unverified',
+  OFFICIAL: 'Official source-backed',
+  DEALER_CONFIRMED: 'Dealer source-backed',
+  USER_REPORTED: 'User reported source',
+  UNVERIFIED: 'Source not confirmed',
 };
 
 const verificationStatusClasses: Record<VehicleVerificationStatus, string> = {
@@ -377,8 +377,9 @@ export default function VehicleCatalog() {
             and final price from the manufacturer or dealer before a purchase decision.
           </p>
           <p className="mt-2">
-            Verification labels show the source confidence of catalog data. Always confirm final
-            price, specs, and availability before purchase.
+            Source-confidence labels describe where the catalog information appears to come from;
+            they do not mean EVReady has physically audited each vehicle. Always confirm final
+            price, specs, dealer details, and availability before purchase.
           </p>
         </div>
 

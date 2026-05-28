@@ -67,8 +67,30 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   OS files, and IDE files out of Git while keeping project documentation tracked.
 - Obsolete frontend dummy vehicle and charger records have been removed now that catalog and
   directory data load from backend APIs.
+- Frontend trust wording now frames EVReady Pakistan as a free Pakistan-focused EV savings and
+  decision utility, treats source-confidence badges as data-source labels rather than field
+  verification, clarifies charger status as non-live, and avoids guaranteed follow-up wording in
+  Get Help.
 
 ## Completed
+
+### 2026-05-28 - Frontend Trust and Source-Confidence Wording Polish
+
+Tightened homepage positioning around EVReady Pakistan as a free Pakistan-focused EV savings and
+practical decision utility for bikes and cars. Updated Vehicle Catalog and Charger Directory badge
+labels and helper text so source-confidence language does not imply EVReady physically audited
+vehicles or chargers. Clarified that charger status is reported/non-live and that users should
+verify connector support, pricing, access, and availability before travel. Softened Get Help copy so
+submission does not imply a guaranteed callback or service outcome.
+
+Changed files:
+
+- `src/pages/Home.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/LeadCapturePlaceholder.tsx`
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
 
 ### 2026-05-28 - Live Frontend Deployment Documentation
 
