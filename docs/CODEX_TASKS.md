@@ -71,8 +71,28 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   decision utility, treats source-confidence badges as data-source labels rather than field
   verification, clarifies charger status as non-live, and avoids guaranteed follow-up wording in
   Get Help.
+- Frontend technical SEO foundation now includes truthful default metadata, Open Graph/Twitter
+  preview metadata, minimal WebSite JSON-LD, and static `robots.txt` plus `sitemap.xml` assets.
 
 ## Completed
+
+### 2026-05-28 - Frontend Technical SEO Foundation
+
+Added truthful default SEO metadata to `index.html`, including title, description, canonical URL,
+Open Graph metadata, Twitter card metadata, and minimal WebSite JSON-LD without product, pricing,
+ratings, live charger availability, or complete-coverage claims. Added static Vite public assets for
+`robots.txt` and `sitemap.xml` with current public frontend routes only. Documented that Google
+Search Console and Bing Webmaster Tools setup are external/manual follow-up steps, not code changes
+in this task.
+
+Changed files:
+
+- `index.html`
+- `public/robots.txt`
+- `public/sitemap.xml`
+- `README.md`
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
 
 ### 2026-05-28 - Frontend Trust and Source-Confidence Wording Polish
 

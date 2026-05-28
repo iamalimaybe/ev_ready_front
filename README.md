@@ -107,6 +107,13 @@ Production frontend configuration should come from deployment environment variab
 variables are bundled into the frontend output, so they must never contain secrets. Deploy only the
 Vite build output, such as `dist/`, and do not expose the full repository as a public web directory.
 
+## Technical SEO
+
+The frontend includes default metadata in `index.html`, plus static `robots.txt` and `sitemap.xml`
+assets served from Vite's `public/` folder. This is a lightweight SEO foundation only; the app does
+not use SSR or prerendering yet. Google Search Console and Bing Webmaster Tools setup are external,
+manual follow-up steps after deployment.
+
 ## Production Deployment
 
 The production frontend is live at `https://evready.pk` and uses the production API at
