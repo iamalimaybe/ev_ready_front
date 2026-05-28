@@ -74,4 +74,7 @@ export const adminApiClient = {
   getLeadStatusOptions: <T>() => request<T>('GET', '/api/v1/admin/leads/statuses'),
   updateLeadStatus: <T>(leadId: number | string, leadStatus: string) =>
     request<T>('PATCH', `/api/v1/admin/leads/${leadId}/status`, { leadStatus }),
+  getContactStatusOptions: <T>() => request<T>('GET', '/api/v1/admin/contact-submissions/statuses'),
+  updateContactStatus: <T>(contactId: number | string, contactStatus: string) =>
+    request<T>('PATCH', `/api/v1/admin/contact-submissions/${contactId}/status`, { contactStatus }),
 };
