@@ -21,14 +21,15 @@ submissions:
 - Charger city and charger type options from backend APIs
 - Get Help / lead capture submissions stored through backend
 - Contact Us submissions stored through backend
+- Internal protected read-only admin visibility for leads and contact submissions
 - Calculators can remain frontend-side where users enter values manually
 - Backend data may initially be managed through DB seed/manual data entry
-- No authentication
+- No public user authentication
 - No payment flow
 - No charger booking
 - No external map API
 - No OEM vehicle integration
-- No admin UI required for the first backend release unless planned later
+- No public admin links or broad data-management UI
 
 ## Current Implemented Tools
 
@@ -43,6 +44,7 @@ submissions:
 9. Static guides/content
 10. Get Help lead capture submission
 11. Contact Us submission
+12. Internal read-only admin view for leads and contact submissions
 
 Cost Comparison now uses manual Bike/Car inputs instead of selecting vehicles from the catalog.
 Vehicle, charger, Get Help, and Contact Us flows are backend-backed in production. Catalog and
@@ -51,8 +53,8 @@ details before travel.
 
 ## Planned Next Work
 
-1. Plan admin and data-management needs in the backend repo, including authentication and access
-   control before any admin UI is implemented.
+1. Plan expanded admin and data-management needs in the backend repo before adding broader admin
+   capabilities.
 2. Plan charger data collection, source confidence, update cadence, and feedback strategy.
 3. Keep ratings and reviews deferred until persistence, moderation, and spam handling are planned.
 4. Keep public calculators frontend-side where users manually enter assumptions.
@@ -154,6 +156,6 @@ The included production compose file serves the built frontend through Nginx and
 The React + Vite + TypeScript + Tailwind CSS frontend is deployed at `https://evready.pk` and uses
 the production API at `https://api.evready.pk`. Vehicle Catalog, Charger Directory, Get Help, and
 Contact Us are backend-backed in production. Frontend trust wording, technical SEO, Cloudflare Web
-Analytics, and copy/share summaries for calculators and estimators are complete. The next planning
-direction is admin/data-management strategy and charger data strategy, without adding admin
-implementation in this frontend repo.
+Analytics, copy/share summaries for calculators and estimators, and a minimal protected read-only
+Admin UI for lead/contact visibility are complete. The next planning direction is expanded
+admin/data-management strategy and charger data strategy.

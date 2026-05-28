@@ -88,18 +88,18 @@ Combines daily range, home charging access, city support, savings, solar availab
 
 ## Planned Primary Tools
 
-### Admin and Data-Management Planning
+### Expanded Admin and Data-Management Planning
 
-The next backend-facing direction is planning how vehicle, charger, lead, and contact data should
-be managed safely. This is planning only; admin implementation should remain deferred until
-authentication, access control, auditability, and operational ownership are defined.
+The frontend now has a minimal protected read-only Admin UI for lead and contact visibility. The
+next backend-facing direction is planning how vehicle, charger, lead, and contact data should be
+managed safely beyond that read-only view.
 
 Scope:
 
-- Plan admin/data-management responsibilities in the backend repo and docs.
+- Plan expanded admin/data-management responsibilities in the backend repo and docs.
 - Keep public frontend calculators frontend-side where users manually enter assumptions.
-- Do not add admin UI, authentication, payments, bookings, or dealer-management flows in this
-  frontend repo as part of this planning step.
+- Do not expand the Admin UI into payments, bookings, dealer-management, ratings, reviews, or
+  public user accounts as part of this planning step.
 - Keep ratings/reviews deferred until persistence, moderation, and spam handling are planned.
 
 ### Charger Data Strategy and Feedback Planning
@@ -253,9 +253,11 @@ The frontend and backend are deployed to production and in sync:
 - Charger Directory loads backend charger data and charger city/type options.
 - Get Help submits to backend.
 - Contact Us submits to backend.
+- Internal Admin routes provide protected read-only visibility into Get Help leads and Contact Us
+  submissions.
 - Trust wording, technical SEO, Cloudflare Web Analytics, and copy/share summaries for
   calculators/estimators are complete.
 
-The next direction is cautious planning for admin/data-management and charger data strategy. Admin
-implementation remains deferred until authentication, access control, moderation, and operational
-ownership are planned.
+The next direction is cautious planning for expanded admin/data-management and charger data
+strategy. Broader admin capabilities remain deferred until access control, auditability,
+moderation, and operational ownership are planned.
