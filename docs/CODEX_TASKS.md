@@ -88,6 +88,16 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 
 ## Completed
 
+### 2026-05-28 - Admin Status Option Type Fix
+
+Fixed the Admin Dashboard build error by updating the remaining lead status options generic type
+from the removed `LeadStatusOption` name to the shared `StatusOption` type.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
+
 ### 2026-05-28 - Admin Contact Status Updates
 
 Added protected Admin UI support for contact submission status updates using backend-provided

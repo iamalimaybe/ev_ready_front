@@ -218,7 +218,7 @@ const AdminDashboard = () => {
     setLeadStatusOptionsError(null);
 
     try {
-      const options = await adminApiClient.getLeadStatusOptions<LeadStatusOption[]>();
+      const options = await adminApiClient.getLeadStatusOptions<StatusOption[]>();
       const validOptions = Array.isArray(options)
         ? options.filter((option) => typeof option.value === 'string' && typeof option.label === 'string')
         : [];
