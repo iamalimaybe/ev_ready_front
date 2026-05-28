@@ -102,7 +102,7 @@ export default function LeadCapturePlaceholder() {
       });
 
       setSuccessMessage(
-        response.message || 'Thanks. Your request has been received and the team can follow up.',
+        response.message || 'Thanks. Your request has been received.',
       );
       setFormValues(initialFormValues);
     } catch (error) {
@@ -123,8 +123,8 @@ export default function LeadCapturePlaceholder() {
     <PageShell eyebrow="Get Help" title="Get EV Help">
       <div className="space-y-6">
         <p className="max-w-3xl text-base leading-7 text-slate-700">
-          Share what kind of EV help you need. EVReady Pakistan can use this request to connect you
-          with practical guidance for EV buying, charging, solar setup, or electrical work.
+          Share what kind of EV help you need. EVReady Pakistan may use this request to understand
+          your EV buying, charging, solar setup, or electrical work question.
         </p>
 
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">

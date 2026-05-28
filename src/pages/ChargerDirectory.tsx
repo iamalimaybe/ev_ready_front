@@ -70,10 +70,10 @@ const chargingTypeOptions: ChargingType[] = ['AC', 'DC', 'AC_DC'];
 const statusOptions: ChargerStatus[] = ['OPERATIONAL', 'LIMITED', 'COMING_SOON', 'UNKNOWN'];
 
 const verificationStatusLabels: Record<ChargerVerificationStatus, string> = {
-  OFFICIAL: 'Official source',
-  DEALER_CONFIRMED: 'Dealer confirmed',
-  USER_REPORTED: 'User reported',
-  UNVERIFIED: 'Unverified',
+  OFFICIAL: 'Operator source-backed',
+  DEALER_CONFIRMED: 'Provider source-backed',
+  USER_REPORTED: 'User reported source',
+  UNVERIFIED: 'Source not confirmed',
 };
 
 const verificationStatusClasses: Record<ChargerVerificationStatus, string> = {
@@ -304,8 +304,9 @@ export default function ChargerDirectory() {
     <PageShell eyebrow="Directory" title="Charger Directory">
       <div className="space-y-6">
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-          Charger details can change and status is not guaranteed live. Verify location, connector,
-          pricing, and availability before travelling.
+          Charger details can change and reported status is not live availability. Source-confidence
+          labels describe the data source, not a physical EVReady audit. Verify location, connector
+          support, pricing, access, and availability before travelling.
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -374,7 +375,7 @@ export default function ChargerDirectory() {
           </label>
 
           <label className="text-sm font-medium text-slate-800">
-            Status
+            Reported status
             <select
               className={selectInputClass}
               value={filters.status}
@@ -493,7 +494,7 @@ function ChargerCard({ charger, chargerTypes }: ChargerCardProps) {
         <SpecRow label="Charger / connector type" value={getChargerTypeName(charger, chargerTypes)} />
         <SpecRow label="Charging type" value={formatChargingTypeLabel(charger.chargingType)} />
         <SpecRow label="Power" value={formatPower(charger.powerKw)} />
-        {sourceCheckedDate ? <SpecRow label="Last verified" value={sourceCheckedDate} /> : null}
+        {sourceCheckedDate ? <SpecRow label="Source checked" value={sourceCheckedDate} /> : null}
       </div>
 
       {noteLines.length > 0 ? (

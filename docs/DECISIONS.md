@@ -275,3 +275,24 @@ Implications:
 - `VITE_*` variables may be used for frontend config, but they must not contain secrets because
   Vite bundles them into browser-visible output.
 - Production hosting should publish the Vite build output only, not the full repository.
+
+## 2026-05-28 - Source Confidence Labels Are Not Field Verification
+
+Decision:
+
+- Vehicle and charger badges should use source-confidence wording, such as source-backed or
+  source not confirmed, instead of wording that could imply EVReady physically audited every
+  vehicle or charger.
+
+Reason:
+
+- Backend `verificationStatus` values describe source confidence for catalog and directory data,
+  not live charger availability, field inspection, or guaranteed vehicle/dealer accuracy.
+
+Implications:
+
+- OFFICIAL should mean backed by an official, operator, distributor, or similar source.
+- Vehicle pages should still ask users to verify specs, price, dealer details, and availability
+  before purchase.
+- Charger pages should still ask users to verify connector support, pricing, access, and
+  availability before travel.
