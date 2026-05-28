@@ -84,8 +84,22 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Minimal protected read-only Admin UI is available for internal lead/contact visibility.
 - Admin leads can now update lead status from the protected Admin UI; contact submissions remain
   read-only.
+- Admin lead status dropdown options now load from the protected backend status-options endpoint.
 
 ## Completed
+
+### 2026-05-28 - Backend-Provided Admin Lead Status Options
+
+Replaced the hardcoded Admin UI lead status option list with protected backend-provided options from
+`GET /api/v1/admin/leads/statuses`. Leads still load if status options fail, but the status update
+control is disabled with a safe message until options are available. Contact submissions remain
+read-only.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-28 - Admin Lead Status Updates
 

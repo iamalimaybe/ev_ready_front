@@ -71,6 +71,7 @@ export const adminApiClient = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: JsonBody) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: JsonBody) => request<T>('PATCH', path, body),
+  getLeadStatusOptions: <T>() => request<T>('GET', '/api/v1/admin/leads/statuses'),
   updateLeadStatus: <T>(leadId: number | string, leadStatus: string) =>
     request<T>('PATCH', `/api/v1/admin/leads/${leadId}/status`, { leadStatus }),
 };

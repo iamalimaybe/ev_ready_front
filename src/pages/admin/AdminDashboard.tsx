@@ -31,6 +31,11 @@ type ContactSubmission = {
   sourcePage?: string | null;
 };
 
+type LeadStatusOption = {
+  value: string;
+  label: string;
+};
+
 type PagePayload<T> = {
   content?: T[];
   number?: number;
@@ -54,12 +59,6 @@ type PageState<T> = {
 type AdminSection = 'leads' | 'contacts';
 
 const PAGE_SIZE = 20;
-const LEAD_STATUS_OPTIONS = [
-  { value: 'NEW', label: 'New' },
-  { value: 'CONTACTED', label: 'Contacted' },
-  { value: 'QUALIFIED', label: 'Qualified' },
-  { value: 'CLOSED', label: 'Closed' },
-] as const;
 
 const emptyPage = <T,>(page = 0): PageState<T> => ({
   items: [],
@@ -120,21 +119,17 @@ const formatDate = (value?: string | null) => {
   }).format(date);
 };
 
-const formatStatusLabel = (value?: string | null) => {
+const formatStatusLabel = (value: string | null | undefined, options: LeadStatusOption[]) => {
   if (!value) {
     return 'Not listed';
   }
 
-  const option = LEAD_STATUS_OPTIONS.find((status) => status.value === value);
+  const option = options.find((status) => status.value === value);
   if (option) {
     return option.label;
   }
 
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  return value;
 };
 
 const hasNextPage = <T,>(pageState: PageState<T>) => {
@@ -159,6 +154,9 @@ const AdminDashboard = () => {
   const [updatingLeadId, setUpdatingLeadId] = useState<number | string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [leadStatusOptions, setLeadStatusOptions] = useState<LeadStatusOption[]>([]);
+  const [isLeadStatusOptionsLoading, setIsLeadStatusOptionsLoading] = useState(false);
+  const [leadStatusOptionsError, setLeadStatusOptionsError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -210,8 +208,31 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadLeadStatusOptions = async () => {
+    setIsLeadStatusOptionsLoading(true);
+    setLeadStatusOptionsError(null);
+
+    try {
+      const options = await adminApiClient.getLeadStatusOptions<LeadStatusOption[]>();
+      const validOptions = Array.isArray(options)
+        ? options.filter((option) => typeof option.value === 'string' && typeof option.label === 'string')
+        : [];
+
+      setLeadStatusOptions(validOptions);
+      if (validOptions.length === 0) {
+        setLeadStatusOptionsError('Lead status options are not available. Status updates are disabled for now.');
+      }
+    } catch {
+      setLeadStatusOptions([]);
+      setLeadStatusOptionsError('Lead status options could not be loaded. Status updates are disabled for now.');
+    } finally {
+      setIsLeadStatusOptionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (authState === 'authenticated') {
+      void loadLeadStatusOptions();
       void loadLeads(0);
       void loadContacts(0);
     }
@@ -276,7 +297,9 @@ const AdminDashboard = () => {
         items: current.items.map((item) => (item.id === updatedLead.id ? updatedLead : item)),
       }));
       setSelectedLead((current) => (current?.id === updatedLead.id ? updatedLead : current));
-      setStatusMessage(`Lead ${updatedLead.id} status updated to ${formatStatusLabel(updatedLead.leadStatus)}.`);
+      setStatusMessage(
+        `Lead ${updatedLead.id} status updated to ${formatStatusLabel(updatedLead.leadStatus, leadStatusOptions)}.`,
+      );
     } catch {
       setStatusError('Lead status could not be updated. Please try again.');
     } finally {
@@ -362,6 +385,7 @@ const AdminDashboard = () => {
             onRefresh={() => void loadLeads(leadPage.page)}
           />
           {leadPage.error ? <Alert message={leadPage.error} /> : null}
+          {leadStatusOptionsError ? <Alert message={leadStatusOptionsError} /> : null}
           {statusError ? <Alert message={statusError} /> : null}
           {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -387,18 +411,29 @@ const AdminDashboard = () => {
                     <td className="px-4 py-3">{formatValue(lead.city)}</td>
                     <td className="px-4 py-3">{formatValue(lead.interestType)}</td>
                     <td className="px-4 py-3">
+                      <p className="mb-1 text-xs font-semibold text-slate-600">
+                        {formatStatusLabel(lead.leadStatus, leadStatusOptions)}
+                      </p>
                       <select
                         aria-label={`Update lead ${lead.id} status`}
                         className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
-                        disabled={updatingLeadId === lead.id}
+                        disabled={
+                          updatingLeadId === lead.id ||
+                          isLeadStatusOptionsLoading ||
+                          Boolean(leadStatusOptionsError) ||
+                          leadStatusOptions.length === 0
+                        }
                         onChange={(event) => void handleLeadStatusChange(lead, event.target.value)}
-                        value={lead.leadStatus ?? ''}
+                        value={
+                          leadStatusOptions.some((status) => status.value === lead.leadStatus)
+                            ? lead.leadStatus ?? ''
+                            : ''
+                        }
                       >
-                        {!lead.leadStatus ? <option value="">Not listed</option> : null}
-                        {lead.leadStatus && !LEAD_STATUS_OPTIONS.some((status) => status.value === lead.leadStatus) ? (
-                          <option value={lead.leadStatus}>{formatStatusLabel(lead.leadStatus)}</option>
-                        ) : null}
-                        {LEAD_STATUS_OPTIONS.map((status) => (
+                        <option value="" disabled>
+                          {isLeadStatusOptionsLoading ? 'Loading statuses...' : 'Select status'}
+                        </option>
+                        {leadStatusOptions.map((status) => (
                           <option key={status.value} value={status.value}>
                             {status.label}
                           </option>
@@ -439,7 +474,7 @@ const AdminDashboard = () => {
                 ['Phone', formatValue(selectedLead.phone)],
                 ['City', formatValue(selectedLead.city)],
                 ['Interest', formatValue(selectedLead.interestType)],
-                ['Status', formatValue(selectedLead.leadStatus)],
+                ['Status', formatStatusLabel(selectedLead.leadStatus, leadStatusOptions)],
                 ['Source page', formatValue(selectedLead.sourcePage)],
                 ['Message', formatValue(selectedLead.message)],
               ]}
