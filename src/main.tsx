@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import App from './App';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminLogin from './pages/admin/AdminLogin';
 import ChargerDirectory from './pages/ChargerDirectory';
 import ContactUs from './pages/ContactUs';
 import CostComparison from './pages/CostComparison';
@@ -18,6 +20,20 @@ import SolarEvChargingEstimator from './pages/SolarEvChargingEstimator';
 import SuitabilityCalculator from './pages/SuitabilityCalculator';
 import VehicleCatalog from './pages/VehicleCatalog';
 import './styles.css';
+
+const loadCloudflareWebAnalytics = () => {
+  if (!import.meta.env.PROD || document.querySelector('script[data-cf-beacon]')) {
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.defer = true;
+  script.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+  script.setAttribute('data-cf-beacon', '{"token":"a9158372897b4e9b9c785018269f1228"}');
+  document.body.appendChild(script);
+};
+
+loadCloudflareWebAnalytics();
 
 const router = createBrowserRouter([
   {
@@ -39,6 +55,8 @@ const router = createBrowserRouter([
       { path: 'guides/home-charging', element: <HomeChargingGuide /> },
       { path: 'guides/solar-ev-charging', element: <SolarEvChargingGuide /> },
       { path: 'get-help', element: <LeadCapturePlaceholder /> },
+      { path: 'admin/login', element: <AdminLogin /> },
+      { path: 'admin', element: <AdminDashboard /> },
     ],
   },
 ]);
