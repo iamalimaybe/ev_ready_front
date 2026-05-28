@@ -296,3 +296,22 @@ Implications:
   before purchase.
 - Charger pages should still ask users to verify connector support, pricing, access, and
   availability before travel.
+
+## 2026-05-28 - Static SEO Foundation Before SSR
+
+Decision:
+
+- Start technical SEO with truthful static `index.html` metadata, `robots.txt`, `sitemap.xml`, and
+  minimal WebSite JSON-LD served by the existing Vite frontend.
+
+Reason:
+
+- EVReady Pakistan needs basic search and social-preview context, but SSR, prerendering, analytics,
+  and heavier SEO infrastructure are premature for this lightweight frontend task.
+
+Implications:
+
+- The sitemap should include only public frontend routes on `https://evready.pk`.
+- Metadata must avoid claims of live charger availability, complete official coverage, ratings,
+  prices, or guaranteed SEO outcomes.
+- Google Search Console and Bing Webmaster Tools setup remain external/manual follow-up steps.
