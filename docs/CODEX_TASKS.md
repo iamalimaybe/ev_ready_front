@@ -62,7 +62,8 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   of relying on a non-existent `locationName` field.
 - Contact Us page and site footer are available.
 - First-release backend API integration is complete for Vehicle Catalog, Charger Directory, and Get
-  Help lead submission; future admin, ratings/reviews, and charger feedback work remains deferred.
+  Help lead submission; future expanded admin, ratings/reviews, and charger feedback work remains
+  deferred.
 - Git ignore rules now keep local env files, generated frontend output, logs, dependency folders,
   OS files, and IDE files out of Git while keeping project documentation tracked.
 - Obsolete frontend dummy vehicle and charger records have been removed now that catalog and
@@ -73,14 +74,60 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   Get Help.
 - Frontend technical SEO foundation now includes truthful default metadata, Open Graph/Twitter
   preview metadata, minimal WebSite JSON-LD, and static `robots.txt` plus `sitemap.xml` assets.
-- Cloudflare Web Analytics beacon is installed in `index.html` through the JS snippet.
+- Cloudflare Web Analytics loads only in production mode, so local Vite dev does not request the
+  Cloudflare beacon script.
 - Cost Comparison and Home Charging Cost Estimator can now copy plain-text estimate summaries.
 - Solar EV Charging Estimator, Suitability Calculator, and Route Feasibility can now copy
   plain-text estimate summaries.
 - Frontend documentation now reflects the deployed production state with backend-backed catalog,
   charger directory, Get Help, and Contact Us flows.
+- Minimal protected read-only Admin UI is available for internal lead/contact visibility.
 
 ## Completed
+
+### 2026-05-28 - Admin Pre-Deployment Cleanup
+
+Moved Cloudflare Web Analytics from the always-loaded `index.html` snippet to a production-only
+loader in `src/main.tsx`, preserving the existing beacon token while avoiding local dev console
+noise. Removed the Admin Login page session probe so logout redirects to `/admin/login` without
+intentionally calling `/api/v1/admin/auth/me`; direct `/admin` visits still check the admin session.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `index.html`
+- `src/main.tsx`
+- `src/pages/admin/AdminLogin.tsx`
+
+### 2026-05-28 - Admin UI TypeScript Build Fix
+
+Fixed the Admin UI build errors by aligning the admin API helper with the existing `ApiError`
+constructor shape and reading HTTP status from `error.response.status` in the admin dashboard.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
+
+### 2026-05-28 - Minimal Read-Only Admin UI for Leads and Contacts
+
+Added internal admin routes for session-cookie protected sign-in and read-only visibility into Get
+Help leads and Contact Us submissions. Admin API requests use credentials without changing public
+API behavior, credentials are not stored in browser storage, and the public site navigation remains
+unchanged. Documentation now records that broader admin/data-management work remains a future
+planning item.
+
+Changed files:
+
+- `README.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/DECISIONS.md`
+- `docs/CODEX_TASKS.md`
+- `src/main.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/pages/admin/AdminLogin.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-28 - Frontend Documentation Production Alignment
 
@@ -88,7 +135,7 @@ Aligned frontend documentation with the current deployed production state. READM
 no longer describe backend API integration as pending, the MVP review checklist now marks completed
 production items appropriately while leaving future strategy items unchecked, and the task list now
 marks backend integration and copy/share summaries as complete. The next documented direction is
-admin/data-management planning and charger data strategy, without admin implementation.
+admin/data-management planning and charger data strategy.
 
 Changed files:
 
@@ -972,12 +1019,10 @@ Changed files:
   - Do not include EV bikes in the selector.
   - Do not fall back to demo vehicles on backend failure.
   - Use `Get EV Help` as the help navigation label.
-- [ ] Admin/Data Management Planning
-  - Plan backend admin/data-management approach for vehicles, chargers, leads, and contact
-    submissions.
-  - Define authentication, access control, auditability, and operational ownership before any admin
-    implementation.
-  - No implementation yet.
+- [ ] Expanded Admin/Data Management Planning
+  - Plan backend admin/data-management approach beyond the current read-only lead/contact view.
+  - Define access control, auditability, moderation, and operational ownership before broader admin
+    capabilities.
 - [ ] Vehicle Ratings and Reviews System
   - Future post-first-release task.
   - Users can rate vehicles from 1 to 5 stars.

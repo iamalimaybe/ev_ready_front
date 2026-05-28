@@ -234,7 +234,7 @@ Implications:
 - Get Help / lead capture submissions should be stored through backend.
 - Calculators can remain frontend-side where users manually enter values.
 - Vehicle and charger data may initially be managed through backend DB seed/manual data entry.
-- No admin UI is required for the first backend release unless planned later.
+- No broad admin UI is required for the first backend release unless planned later.
 - Demo-data UI wording should be removed after backend integration and replaced with verify-before-purchase/travel guidance.
 - Ratings/reviews remain deferred because they need persistence, moderation, and spam handling.
 
@@ -315,3 +315,24 @@ Implications:
 - Metadata must avoid claims of live charger availability, complete official coverage, ratings,
   prices, or guaranteed SEO outcomes.
 - Google Search Console and Bing Webmaster Tools setup remain external/manual follow-up steps.
+
+## 2026-05-28 - Minimal Protected Read-Only Admin UI
+
+Decision:
+
+- Add internal routes for session-cookie protected admin sign-in and read-only lead/contact
+  visibility.
+
+Reason:
+
+- EVReady Pakistan needs operational visibility into Get Help leads and Contact Us submissions
+  without changing the public user experience or adding broad data-management features.
+
+Implications:
+
+- Admin API requests must use `credentials: "include"` because the backend auth session is
+  cookie-based.
+- Admin credentials must not be stored in browser storage or hardcoded in the frontend.
+- Public navigation should not prominently expose admin access.
+- Broader admin capabilities remain deferred until access control, auditability, moderation, and
+  operational ownership are planned.
