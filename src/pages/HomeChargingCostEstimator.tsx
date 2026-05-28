@@ -43,6 +43,7 @@ const selectInputClass = numberInputClass;
 
 export default function HomeChargingCostEstimator() {
   const [formValues, setFormValues] = useState<FormValues>(initialFormValues);
+  const [copyMessage, setCopyMessage] = useState<string | undefined>();
 
   const validationMessages = useMemo(
     () =>
@@ -76,10 +77,25 @@ export default function HomeChargingCostEstimator() {
   }, [formValues, hasValidationErrors]);
 
   function updateFormValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
+    setCopyMessage(undefined);
     setFormValues((currentValues) => ({
       ...currentValues,
       [key]: value,
     }));
+  }
+
+  async function copyResultSummary() {
+    if (!result || hasValidationErrors || !navigator.clipboard) {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(createResultSummary(formValues, result));
+      setCopyMessage('Result summary copied.');
+    } catch {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+    }
   }
 
   return (
@@ -208,6 +224,19 @@ export default function HomeChargingCostEstimator() {
                   units are used and your electricity unit price.
                 </p>
 
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={copyResultSummary}
+                    className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+                  >
+                    Copy result summary
+                  </button>
+                  {copyMessage ? (
+                    <p className="text-sm leading-6 text-slate-700">{copyMessage}</p>
+                  ) : null}
+                </div>
+
                 <p className="text-xs leading-5 text-slate-600">
                   This is a quick estimate, not a guarantee. Real charging cost and time can vary
                   with charger efficiency, battery condition, voltage stability, tariff slabs, and
@@ -317,4 +346,43 @@ function formatNumber(value: number): string {
 
 function formatHours(value: number): string {
   return Number.isFinite(value) ? `${numberFormatter.format(value)} hours` : '-';
+}
+
+type CopyableResult = {
+  vehicleType: HomeChargingVehicleType;
+  batteryPercentageToCharge: number;
+  energyNeededBeforeLoss: number;
+  gridEnergyRequiredKwh: number;
+  estimatedChargingCost: number;
+  estimatedChargingTimeHours: number;
+  electricityUnitPrice: number;
+};
+
+function createResultSummary(formValues: FormValues, result: CopyableResult): string {
+  return [
+    'EVReady Pakistan - Home Charging Cost Estimate',
+    '',
+    `Vehicle type: ${result.vehicleType}`,
+    `Battery size used: ${formatSummaryNumber(formValues.batteryCapacityKwh)} kWh`,
+    `Battery level now: ${formatSummaryNumber(formValues.currentBatteryPercentage)}%`,
+    `Target battery level: ${formatSummaryNumber(formValues.targetBatteryPercentage)}%`,
+    `Battery percentage being added: ${formatSummaryNumber(result.batteryPercentageToCharge)}%`,
+    `Energy added to battery: ${formatSummaryNumber(result.energyNeededBeforeLoss)} kWh`,
+    `Electricity taken from home supply: ${formatSummaryNumber(result.gridEnergyRequiredKwh)} kWh`,
+    `Electricity unit price used: ${formatSummaryCurrency(result.electricityUnitPrice)} per kWh/unit`,
+    `Charger power used: ${formatSummaryNumber(formValues.chargerPowerKw)} kW`,
+    `Charging loss used: ${formatSummaryNumber(formValues.chargingLossPercentage)}%`,
+    `Estimated charging cost: ${formatSummaryCurrency(result.estimatedChargingCost)}`,
+    `Estimated charging time: ${formatSummaryNumber(result.estimatedChargingTimeHours)} hours`,
+    '',
+    'This is a quick estimate, not a guarantee. Actual charging cost and time can vary with charger efficiency, battery condition, voltage stability, tariff slabs, and actual charger output.',
+  ].join('\n');
+}
+
+function formatSummaryCurrency(value: number): string {
+  return Number.isFinite(value) ? `Rs ${numberFormatter.format(Math.round(value))}` : '-';
+}
+
+function formatSummaryNumber(value: number): string {
+  return Number.isFinite(value) ? numberFormatter.format(Math.round(value)) : '-';
 }
