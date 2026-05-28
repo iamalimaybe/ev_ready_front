@@ -32,6 +32,10 @@ const initialFormValues: FormValues = {
   reserveBatteryPercentage: 20,
 };
 
+const numberFormatter = new Intl.NumberFormat('en-PK', {
+  maximumFractionDigits: 1,
+});
+
 const numberInputClass =
   'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
 
@@ -68,6 +72,7 @@ export default function RouteFeasibility() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isVehicleLoading, setIsVehicleLoading] = useState(true);
   const [vehicleErrorMessage, setVehicleErrorMessage] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | undefined>();
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -184,6 +189,7 @@ export default function RouteFeasibility() {
   ]);
 
   function updateFormValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
+    setCopyMessage(undefined);
     setFormValues((currentValues) => ({
       ...currentValues,
       [key]: value,
@@ -191,12 +197,29 @@ export default function RouteFeasibility() {
   }
 
   function updateFromCity(fromCity: string) {
+    setCopyMessage(undefined);
     setFormValues((currentValues) => ({
       ...currentValues,
       fromCity,
       toCity:
         currentValues.toCity === fromCity ? getNextDifferentCity(fromCity) : currentValues.toCity,
     }));
+  }
+
+  async function copyResultSummary() {
+    if (!routeResult || !selectedRoute || !selectedVehicle || !navigator.clipboard) {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        createResultSummary(formValues, selectedVehicle, selectedRoute, routeResult),
+      );
+      setCopyMessage('Result summary copied.');
+    } catch {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+    }
   }
 
   return (
@@ -354,6 +377,19 @@ export default function RouteFeasibility() {
                   {getRouteFeasibilityExplanation(routeResult.verdict)}
                 </p>
 
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={copyResultSummary}
+                    className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+                  >
+                    Copy result summary
+                  </button>
+                  {copyMessage ? (
+                    <p className="text-sm leading-6 text-slate-700">{copyMessage}</p>
+                  ) : null}
+                </div>
+
                 <p className="text-xs leading-5 text-slate-600">
                   This is a quick estimate, not a guarantee. It does not check live chargers,
                   traffic, weather, terrain, speed, load, or road conditions.
@@ -426,4 +462,43 @@ function ResultRow({ label, value }: ResultRowProps) {
       <span className="text-right font-semibold text-slate-950">{value}</span>
     </div>
   );
+}
+
+type CopyableRoute = {
+  distanceKm: number;
+};
+
+type CopyableRouteResult = {
+  usableBatteryPercentage: number;
+  usableRangeKm: number;
+  verdict: RouteFeasibilityVerdict;
+  chargingRequired: boolean;
+};
+
+function createResultSummary(
+  formValues: FormValues,
+  selectedVehicle: Vehicle,
+  selectedRoute: CopyableRoute,
+  routeResult: CopyableRouteResult,
+): string {
+  return [
+    'EVReady Pakistan - Route Feasibility Estimate',
+    '',
+    `Route: ${formValues.fromCity} to ${formValues.toCity}`,
+    `Selected EV: ${selectedVehicle.brand} ${selectedVehicle.model}`,
+    `Route distance: ${formatSummaryNumber(selectedRoute.distanceKm)} km`,
+    `Estimated highway range on full charge: ${formatSummaryNumber(selectedVehicle.practicalHighwayRangeKm)} km`,
+    `Battery level before leaving: ${formatSummaryNumber(formValues.currentBatteryPercentage)}%`,
+    `Battery reserve: ${formatSummaryNumber(formValues.reserveBatteryPercentage)}%`,
+    `Battery usable after reserve: ${formatSummaryNumber(routeResult.usableBatteryPercentage)}%`,
+    `Estimated usable range: ${formatSummaryNumber(routeResult.usableRangeKm)} km`,
+    `Trip verdict: ${verdictLabels[routeResult.verdict]}`,
+    `Charging required: ${routeResult.chargingRequired ? 'Yes' : 'No'}`,
+    '',
+    'This is a quick estimate, not a guarantee. It does not check live chargers, traffic, weather, terrain, speed, load, or road conditions. Verify route and charger details before travel.',
+  ].join('\n');
+}
+
+function formatSummaryNumber(value: number): string {
+  return Number.isFinite(value) ? numberFormatter.format(Math.round(value)) : '-';
 }

@@ -45,6 +45,7 @@ const selectInputClass = numberInputClass;
 
 export default function SolarEvChargingEstimator() {
   const [formValues, setFormValues] = useState<FormValues>(initialFormValues);
+  const [copyMessage, setCopyMessage] = useState<string | undefined>();
 
   const validationMessages = useMemo(
     () =>
@@ -88,10 +89,25 @@ export default function SolarEvChargingEstimator() {
     : 'Estimated yearly savings';
 
   function updateFormValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
+    setCopyMessage(undefined);
     setFormValues((currentValues) => ({
       ...currentValues,
       [key]: value,
     }));
+  }
+
+  async function copyResultSummary() {
+    if (!result || hasValidationErrors || !navigator.clipboard) {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(createResultSummary(formValues, result));
+      setCopyMessage('Result summary copied.');
+    } catch {
+      setCopyMessage('Could not copy automatically. Please copy the result manually.');
+    }
   }
 
   return (
@@ -229,6 +245,19 @@ export default function SolarEvChargingEstimator() {
                   remaining units are priced at the grid electricity rate.
                 </p>
 
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={copyResultSummary}
+                    className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+                  >
+                    Copy result summary
+                  </button>
+                  {copyMessage ? (
+                    <p className="text-sm leading-6 text-slate-700">{copyMessage}</p>
+                  ) : null}
+                </div>
+
                 <p className="text-xs leading-5 text-slate-600">
                   This is a quick estimate, not a guarantee. Real solar charging cost can vary with
                   solar system size, daytime charging, household load, net metering, battery backup,
@@ -334,4 +363,58 @@ function formatCurrency(value: number): string {
 
 function formatNumber(value: number): string {
   return Number.isFinite(value) ? numberFormatter.format(value) : '-';
+}
+
+type CopyableResult = {
+  vehicleType: HomeChargingVehicleType;
+  monthlyKm: number;
+  monthlyEnergyNeedKwh: number;
+  solarCoveredKwh: number;
+  gridRequiredKwh: number;
+  fullGridCost: number;
+  estimatedBlendedCost: number;
+  estimatedMonthlySavings: number;
+  estimatedYearlySavings: number;
+};
+
+function createResultSummary(formValues: FormValues, result: CopyableResult): string {
+  const monthlySavingsLine =
+    result.estimatedMonthlySavings >= 0
+      ? `Estimated monthly savings: ${formatSummaryCurrency(result.estimatedMonthlySavings)}`
+      : `Estimated extra monthly cost: ${formatSummaryCurrency(Math.abs(result.estimatedMonthlySavings))}`;
+  const yearlySavingsLine =
+    result.estimatedYearlySavings >= 0
+      ? `Estimated yearly savings: ${formatSummaryCurrency(result.estimatedYearlySavings)}`
+      : `Estimated extra yearly cost: ${formatSummaryCurrency(Math.abs(result.estimatedYearlySavings))}`;
+
+  return [
+    'EVReady Pakistan - Solar EV Charging Estimate',
+    '',
+    `Vehicle type: ${result.vehicleType}`,
+    `Daily travel: ${formatSummaryNumber(formValues.dailyKm)} km`,
+    `Days per month: ${formatSummaryNumber(formValues.daysPerMonth)}`,
+    `Monthly distance: ${formatSummaryNumber(result.monthlyKm)} km`,
+    `Battery size used: ${formatSummaryNumber(formValues.batteryCapacityKwh)} kWh`,
+    `Range used: ${formatSummaryNumber(formValues.rangePerFullChargeKm)} km per full charge`,
+    `Grid electricity unit price used: ${formatSummaryCurrency(formValues.gridElectricityUnitPrice)} per kWh/unit`,
+    `Solar charging share used: ${formatSummaryNumber(formValues.solarChargingSharePercentage)}%`,
+    `Solar unit cost used: ${formatSummaryCurrency(formValues.effectiveSolarUnitCost)} per kWh/unit`,
+    `Estimated monthly EV charging units: ${formatSummaryNumber(result.monthlyEnergyNeedKwh)} kWh`,
+    `Units covered by solar: ${formatSummaryNumber(result.solarCoveredKwh)} kWh`,
+    `Units still taken from grid: ${formatSummaryNumber(result.gridRequiredKwh)} kWh`,
+    `Estimated full-grid charging cost: ${formatSummaryCurrency(result.fullGridCost)}`,
+    `Estimated solar + grid charging cost: ${formatSummaryCurrency(result.estimatedBlendedCost)}`,
+    monthlySavingsLine,
+    yearlySavingsLine,
+    '',
+    'This is a quick estimate, not a guarantee. Actual solar charging cost can vary with solar system size, daytime charging, household load, net metering, battery backup, weather, tariff slabs, and actual EV efficiency.',
+  ].join('\n');
+}
+
+function formatSummaryCurrency(value: number): string {
+  return Number.isFinite(value) ? `Rs ${numberFormatter.format(Math.round(value))}` : '-';
+}
+
+function formatSummaryNumber(value: number): string {
+  return Number.isFinite(value) ? numberFormatter.format(Math.round(value)) : '-';
 }
