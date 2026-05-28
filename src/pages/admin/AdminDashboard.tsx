@@ -26,12 +26,13 @@ type ContactSubmission = {
   phone?: string | null;
   organization?: string | null;
   inquiryType?: string | null;
+  contactStatus?: string | null;
   createdAt?: string | null;
   message?: string | null;
   sourcePage?: string | null;
 };
 
-type LeadStatusOption = {
+type StatusOption = {
   value: string;
   label: string;
 };
@@ -119,7 +120,7 @@ const formatDate = (value?: string | null) => {
   }).format(date);
 };
 
-const formatStatusLabel = (value: string | null | undefined, options: LeadStatusOption[]) => {
+const formatStatusLabel = (value: string | null | undefined, options: StatusOption[]) => {
   if (!value) {
     return 'Not listed';
   }
@@ -152,11 +153,15 @@ const AdminDashboard = () => {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [updatingLeadId, setUpdatingLeadId] = useState<number | string | null>(null);
+  const [updatingContactId, setUpdatingContactId] = useState<number | string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [leadStatusOptions, setLeadStatusOptions] = useState<LeadStatusOption[]>([]);
+  const [leadStatusOptions, setLeadStatusOptions] = useState<StatusOption[]>([]);
   const [isLeadStatusOptionsLoading, setIsLeadStatusOptionsLoading] = useState(false);
   const [leadStatusOptionsError, setLeadStatusOptionsError] = useState<string | null>(null);
+  const [contactStatusOptions, setContactStatusOptions] = useState<StatusOption[]>([]);
+  const [isContactStatusOptionsLoading, setIsContactStatusOptionsLoading] = useState(false);
+  const [contactStatusOptionsError, setContactStatusOptionsError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -230,9 +235,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadContactStatusOptions = async () => {
+    setIsContactStatusOptionsLoading(true);
+    setContactStatusOptionsError(null);
+
+    try {
+      const options = await adminApiClient.getContactStatusOptions<StatusOption[]>();
+      const validOptions = Array.isArray(options)
+        ? options.filter((option) => typeof option.value === 'string' && typeof option.label === 'string')
+        : [];
+
+      setContactStatusOptions(validOptions);
+      if (validOptions.length === 0) {
+        setContactStatusOptionsError('Contact status options are not available. Status updates are disabled for now.');
+      }
+    } catch {
+      setContactStatusOptions([]);
+      setContactStatusOptionsError(
+        'Contact status options could not be loaded. Status updates are disabled for now.',
+      );
+    } finally {
+      setIsContactStatusOptionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (authState === 'authenticated') {
       void loadLeadStatusOptions();
+      void loadContactStatusOptions();
       void loadLeads(0);
       void loadContacts(0);
     }
@@ -304,6 +334,35 @@ const AdminDashboard = () => {
       setStatusError('Lead status could not be updated. Please try again.');
     } finally {
       setUpdatingLeadId(null);
+    }
+  };
+
+  const handleContactStatusChange = async (contact: ContactSubmission, nextStatus: string) => {
+    if (contact.contactStatus === nextStatus) {
+      return;
+    }
+
+    setUpdatingContactId(contact.id);
+    setStatusMessage(null);
+    setStatusError(null);
+
+    try {
+      const updatedContact = await adminApiClient.updateContactStatus<ContactSubmission>(contact.id, nextStatus);
+      setContactPage((current) => ({
+        ...current,
+        items: current.items.map((item) => (item.id === updatedContact.id ? updatedContact : item)),
+      }));
+      setSelectedContact((current) => (current?.id === updatedContact.id ? updatedContact : current));
+      setStatusMessage(
+        `Contact ${updatedContact.id} status updated to ${formatStatusLabel(
+          updatedContact.contactStatus,
+          contactStatusOptions,
+        )}.`,
+      );
+    } catch {
+      setStatusError('Contact status could not be updated. Please try again.');
+    } finally {
+      setUpdatingContactId(null);
     }
   };
 
@@ -490,6 +549,9 @@ const AdminDashboard = () => {
             onRefresh={() => void loadContacts(contactPage.page)}
           />
           {contactPage.error ? <Alert message={contactPage.error} /> : null}
+          {contactStatusOptionsError ? <Alert message={contactStatusOptionsError} /> : null}
+          {statusError ? <Alert message={statusError} /> : null}
+          {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -500,6 +562,7 @@ const AdminDashboard = () => {
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Organization</th>
                   <th className="px-4 py-3">Inquiry</th>
+                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3">Details</th>
                 </tr>
@@ -513,6 +576,39 @@ const AdminDashboard = () => {
                     <td className="px-4 py-3">{formatValue(contact.phone)}</td>
                     <td className="px-4 py-3">{formatValue(contact.organization)}</td>
                     <td className="px-4 py-3">{formatValue(contact.inquiryType)}</td>
+                    <td className="px-4 py-3">
+                      <p className="mb-1 text-xs font-semibold text-slate-600">
+                        {formatStatusLabel(contact.contactStatus, contactStatusOptions)}
+                      </p>
+                      <select
+                        aria-label={`Update contact ${contact.id} status`}
+                        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        disabled={
+                          updatingContactId === contact.id ||
+                          isContactStatusOptionsLoading ||
+                          Boolean(contactStatusOptionsError) ||
+                          contactStatusOptions.length === 0
+                        }
+                        onChange={(event) => void handleContactStatusChange(contact, event.target.value)}
+                        value={
+                          contactStatusOptions.some((status) => status.value === contact.contactStatus)
+                            ? contact.contactStatus ?? ''
+                            : ''
+                        }
+                      >
+                        <option value="" disabled>
+                          {isContactStatusOptionsLoading ? 'Loading statuses...' : 'Select status'}
+                        </option>
+                        {contactStatusOptions.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                      {updatingContactId === contact.id ? (
+                        <p className="mt-1 text-xs text-slate-500">Updating...</p>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3">{formatDate(contact.createdAt)}</td>
                     <td className="px-4 py-3">
                       <button
@@ -550,6 +646,7 @@ const AdminDashboard = () => {
                 ['Phone', formatValue(selectedContact.phone)],
                 ['Organization', formatValue(selectedContact.organization)],
                 ['Inquiry', formatValue(selectedContact.inquiryType)],
+                ['Status', formatStatusLabel(selectedContact.contactStatus, contactStatusOptions)],
                 ['Source page', formatValue(selectedContact.sourcePage)],
                 ['Message', formatValue(selectedContact.message)],
               ]}
