@@ -34,8 +34,8 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   layman Pakistani users.
 - Vehicle Catalog supports Bike/Car category filtering and price/range filters without ratings or
   reviews.
-- First release now expects a separate backend repo for vehicle data, charger data, and Get Help
-  lead capture submissions.
+- Production now integrates with the separate backend repo for vehicle data, charger data, Get Help
+  lead capture submissions, and Contact Us submissions.
 - Calculators can remain frontend-side where users manually enter values.
 - Frontend API base URL config and a reusable typed GET/POST helper are available.
 - Vehicle Catalog now loads active vehicle records from the separate backend API.
@@ -77,8 +77,25 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Cost Comparison and Home Charging Cost Estimator can now copy plain-text estimate summaries.
 - Solar EV Charging Estimator, Suitability Calculator, and Route Feasibility can now copy
   plain-text estimate summaries.
+- Frontend documentation now reflects the deployed production state with backend-backed catalog,
+  charger directory, Get Help, and Contact Us flows.
 
 ## Completed
+
+### 2026-05-28 - Frontend Documentation Production Alignment
+
+Aligned frontend documentation with the current deployed production state. README and Product Spec
+no longer describe backend API integration as pending, the MVP review checklist now marks completed
+production items appropriately while leaving future strategy items unchecked, and the task list now
+marks backend integration and copy/share summaries as complete. The next documented direction is
+admin/data-management planning and charger data strategy, without admin implementation.
+
+Changed files:
+
+- `README.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/MVP_REVIEW_CHECKLIST.md`
+- `docs/CODEX_TASKS.md`
 
 ### 2026-05-28 - Copy Summaries for Remaining Estimators
 
@@ -926,7 +943,7 @@ Changed files:
 - [x] Build Home Charging Cost Estimator
 - [x] Build Solar EV Charging Estimator
 - [x] Add Copy Result Summary feature
-- [ ] Extend copy result summaries to other calculators
+- [x] Extend copy result summaries to other calculators
 - [x] Layman readability pass for calculator labels and helper text
 - [x] Add static guide/content pages
 - [x] Add lead capture placeholder CTA
@@ -955,8 +972,11 @@ Changed files:
   - Do not include EV bikes in the selector.
   - Do not fall back to demo vehicles on backend failure.
   - Use `Get EV Help` as the help navigation label.
-- [ ] Backend/Data Flow Planning
-  - Plan backend/data source approach for calculators, vehicle catalog, charger directory, and future lead flows.
+- [ ] Admin/Data Management Planning
+  - Plan backend admin/data-management approach for vehicles, chargers, leads, and contact
+    submissions.
+  - Define authentication, access control, auditability, and operational ownership before any admin
+    implementation.
   - No implementation yet.
 - [ ] Vehicle Ratings and Reviews System
   - Future post-first-release task.
