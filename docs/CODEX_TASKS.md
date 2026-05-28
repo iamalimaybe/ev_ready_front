@@ -73,8 +73,20 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   Get Help.
 - Frontend technical SEO foundation now includes truthful default metadata, Open Graph/Twitter
   preview metadata, minimal WebSite JSON-LD, and static `robots.txt` plus `sitemap.xml` assets.
+- Cloudflare Web Analytics beacon is installed in `index.html` through the JS snippet.
 
 ## Completed
+
+### 2026-05-28 - Cloudflare Web Analytics Beacon
+
+Added the Cloudflare Web Analytics JS snippet to `index.html` near the end of the body before the
+closing `</body>` tag. No analytics abstraction, dependencies, routes, APIs, sitemap, robots, or
+app behavior were changed.
+
+Changed files:
+
+- `index.html`
+- `docs/CODEX_TASKS.md`
 
 ### 2026-05-28 - Frontend Technical SEO Foundation
 
