@@ -52,6 +52,27 @@ export type VehicleReviewSubmissionResponse = {
   message?: string;
 };
 
+export type PublicVehicleReview = {
+  id?: string | number;
+  rating?: number | string | null;
+  reviewText?: string | null;
+  displayName?: string | null;
+  city?: string | null;
+  experienceType?: string | null;
+  createdAt?: string | null;
+};
+
+export type PageResponse<T> = {
+  content?: T[];
+  number?: number;
+  page?: number;
+  size?: number;
+  totalPages?: number;
+  totalElements?: number;
+  first?: boolean;
+  last?: boolean;
+};
+
 interface RequestOptions {
   body?: JsonBody;
 }
@@ -138,5 +159,9 @@ export const vehicleReviewApi = {
     apiClient.post<VehicleReviewSubmissionResponse>(
       `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/reviews`,
       review,
+    ),
+  getApprovedReviews: (vehicleId: string, page = 0, size = 10) =>
+    apiClient.get<PageResponse<PublicVehicleReview> | PublicVehicleReview[]>(
+      `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/reviews?page=${page}&size=${size}`,
     ),
 };

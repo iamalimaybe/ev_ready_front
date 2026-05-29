@@ -6,6 +6,8 @@ import {
   ApiError,
   apiClient,
   vehicleReviewApi,
+  type PageResponse,
+  type PublicVehicleReview,
   type VehicleReviewExperienceTypeOption,
 } from '../utils/api';
 
@@ -38,6 +40,15 @@ type ReviewFormErrors = {
   experienceType?: string;
 };
 
+type ApprovedReviewPageState = {
+  reviews: PublicVehicleReview[];
+  page: number;
+  totalPages?: number;
+  totalElements?: number;
+  isLoading: boolean;
+  errorMessage: string | null;
+};
+
 const currencyFormatter = new Intl.NumberFormat('en-PK', {
   maximumFractionDigits: 0,
   style: 'currency',
@@ -68,6 +79,15 @@ const initialReviewForm: ReviewFormState = {
 
 const inputClass =
   'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
+
+const approvedReviewPageSize = 10;
+
+const emptyApprovedReviewPage = (page = 0): ApprovedReviewPageState => ({
+  reviews: [],
+  page,
+  isLoading: false,
+  errorMessage: null,
+});
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -108,6 +128,29 @@ function normalizeVehicleDetail(vehicle: BackendVehicleDetail): VehicleDetailRec
   };
 }
 
+function normalizeApprovedReviewPage(
+  payload: PageResponse<PublicVehicleReview> | PublicVehicleReview[],
+  fallbackPage: number,
+): ApprovedReviewPageState {
+  if (Array.isArray(payload)) {
+    return {
+      reviews: payload,
+      page: fallbackPage,
+      isLoading: false,
+      errorMessage: null,
+    };
+  }
+
+  return {
+    reviews: Array.isArray(payload.content) ? payload.content : [],
+    page: typeof payload.number === 'number' ? payload.number : payload.page ?? fallbackPage,
+    totalPages: payload.totalPages,
+    totalElements: payload.totalElements,
+    isLoading: false,
+    errorMessage: null,
+  };
+}
+
 export default function VehicleDetail() {
   const { id } = useParams();
   const [vehicle, setVehicle] = useState<VehicleDetailRecord | null>(null);
@@ -121,6 +164,9 @@ export default function VehicleDetail() {
   const [reviewSuccessMessage, setReviewSuccessMessage] = useState<string | null>(null);
   const [reviewErrorMessage, setReviewErrorMessage] = useState<string | null>(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [approvedReviewPage, setApprovedReviewPage] = useState<ApprovedReviewPageState>(
+    emptyApprovedReviewPage(),
+  );
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -176,6 +222,15 @@ export default function VehicleDetail() {
   }, [id]);
 
   useEffect(() => {
+    if (!id) {
+      setApprovedReviewPage(emptyApprovedReviewPage());
+      return;
+    }
+
+    void loadApprovedReviews(0, id);
+  }, [id]);
+
+  useEffect(() => {
     let isCurrentRequest = true;
 
     setExperienceTypeErrorMessage(null);
@@ -212,6 +267,34 @@ export default function VehicleDetail() {
       isCurrentRequest = false;
     };
   }, []);
+
+  async function loadApprovedReviews(page: number, vehicleId = id) {
+    if (!vehicleId) {
+      return;
+    }
+
+    setApprovedReviewPage((currentPage) => ({
+      ...currentPage,
+      page,
+      isLoading: true,
+      errorMessage: null,
+    }));
+
+    try {
+      const reviewResponse = await vehicleReviewApi.getApprovedReviews(
+        vehicleId,
+        page,
+        approvedReviewPageSize,
+      );
+      setApprovedReviewPage(normalizeApprovedReviewPage(reviewResponse, page));
+    } catch (error: unknown) {
+      setApprovedReviewPage((currentPage) => ({
+        ...currentPage,
+        isLoading: false,
+        errorMessage: getErrorMessage(error),
+      }));
+    }
+  }
 
   function updateReviewField<Key extends keyof ReviewFormState>(
     key: Key,
@@ -324,6 +407,11 @@ export default function VehicleDetail() {
                   >
                     {verificationStatusLabels[vehicle.verificationStatus]}
                   </span>
+                  <RatingSummary
+                    averageRating={vehicle.averageRating}
+                    className="mt-3"
+                    ratingCount={vehicle.ratingCount}
+                  />
                 </div>
                 <p className="text-sm font-semibold text-slate-800">
                   {formatPrice(vehicle.approxPricePkr)}
@@ -359,11 +447,61 @@ export default function VehicleDetail() {
 
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-950">Approved community reviews</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Public reviews are community-submitted and moderated before display. Ratings are
+                  not official, and EVReady does not verify every claim.
+                </p>
+              </div>
+
+              {approvedReviewPage.isLoading ? (
+                <StateMessage>Loading approved reviews...</StateMessage>
+              ) : approvedReviewPage.errorMessage ? (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                  <p className="font-semibold">Approved reviews could not be loaded.</p>
+                  <p className="mt-1">{approvedReviewPage.errorMessage}</p>
+                </div>
+              ) : approvedReviewPage.reviews.length > 0 ? (
+                <div className="mt-5 space-y-4">
+                  {approvedReviewPage.reviews.map((review, index) => (
+                    <ApprovedReviewCard key={review.id ?? index} review={review} />
+                  ))}
+                  {shouldShowReviewPagination(approvedReviewPage) ? (
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={approvedReviewPage.isLoading || approvedReviewPage.page <= 0}
+                        onClick={() => void loadApprovedReviews(approvedReviewPage.page - 1)}
+                        type="button"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-slate-500">Page {approvedReviewPage.page + 1}</span>
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={!hasNextReviewPage(approvedReviewPage)}
+                        onClick={() => void loadApprovedReviews(approvedReviewPage.page + 1)}
+                        type="button"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  No approved reviews yet.
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="space-y-2">
                 <h2 className="text-xl font-bold text-slate-950">Share your vehicle experience</h2>
                 <p className="text-sm leading-6 text-slate-600">
-                  Your review will be submitted for moderation before any public display is added.
-                  EVReady does not verify user claims, and public ratings/comments are not shown
-                  yet.
+                  Your review will be submitted for moderation before any public display. EVReady
+                  does not verify user claims, and newly submitted reviews do not appear in the
+                  approved public list unless they are approved later.
                 </p>
               </div>
 
@@ -500,6 +638,62 @@ function StateMessage({ children }: { children: string }) {
   );
 }
 
+type RatingSummaryProps = {
+  averageRating: number | null;
+  ratingCount: number;
+  className?: string;
+};
+
+function RatingSummary({ averageRating, className = '', ratingCount }: RatingSummaryProps) {
+  if (!averageRating || ratingCount <= 0) {
+    return <p className={`text-sm text-slate-500 ${className}`}>No approved ratings yet</p>;
+  }
+
+  return (
+    <div className={`flex flex-wrap items-center gap-2 text-sm ${className}`}>
+      <span className="font-semibold text-amber-600" aria-hidden="true">
+        {renderStars(averageRating)}
+      </span>
+      <span className="font-semibold text-slate-800">
+        {formatRating(averageRating)}/5 · {ratingCount} {ratingCount === 1 ? 'review' : 'reviews'}
+      </span>
+    </div>
+  );
+}
+
+function ApprovedReviewCard({ review }: { review: PublicVehicleReview }) {
+  const rating = parseRating(review.rating);
+
+  return (
+    <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-semibold text-slate-950">{formatText(review.displayName, 'EVReady user')}</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {formatText(review.city, 'City not listed')} · {formatEnumLabel(formatText(review.experienceType, 'Experience not listed'))}
+          </p>
+        </div>
+        <div className="text-sm font-semibold text-slate-800">
+          {rating ? (
+            <span>
+              <span className="text-amber-600" aria-hidden="true">
+                {renderStars(rating)}
+              </span>{' '}
+              {formatRating(rating)}/5
+            </span>
+          ) : (
+            'Rating not listed'
+          )}
+        </div>
+      </div>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+        {formatText(review.reviewText, 'No review text provided.')}
+      </p>
+      <p className="mt-3 text-xs text-slate-500">Submitted {formatDate(review.createdAt)}</p>
+    </article>
+  );
+}
+
 function isMeaningfulString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -522,6 +716,58 @@ function formatBattery(value: number) {
 
 function formatBoolean(value: boolean): string {
   return value ? 'Yes' : 'No';
+}
+
+function parseRating(value: PublicVehicleReview['rating']) {
+  const parsedValue = typeof value === 'number' ? value : isMeaningfulString(value) ? Number(value) : Number.NaN;
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    return null;
+  }
+
+  return Math.min(5, Math.round(parsedValue * 10) / 10);
+}
+
+function renderStars(rating: number) {
+  const roundedRating = Math.round(rating);
+
+  return Array.from({ length: 5 }, (_, index) => (index < roundedRating ? '★' : '☆')).join('');
+}
+
+function formatRating(rating: number) {
+  return rating.toFixed(1);
+}
+
+function formatDate(value: unknown) {
+  if (!isMeaningfulString(value)) {
+    return 'Date not listed';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value.trim();
+  }
+
+  return new Intl.DateTimeFormat('en-PK', {
+    dateStyle: 'medium',
+  }).format(date);
+}
+
+function shouldShowReviewPagination(reviewPage: ApprovedReviewPageState) {
+  if (typeof reviewPage.totalPages === 'number') {
+    return reviewPage.totalPages > 1;
+  }
+
+  return reviewPage.page > 0 || reviewPage.reviews.length === approvedReviewPageSize;
+}
+
+function hasNextReviewPage(reviewPage: ApprovedReviewPageState) {
+  if (typeof reviewPage.totalPages === 'number') {
+    return reviewPage.page + 1 < reviewPage.totalPages;
+  }
+
+  return reviewPage.reviews.length === approvedReviewPageSize;
 }
 
 function trimOptionalValue(value: string) {

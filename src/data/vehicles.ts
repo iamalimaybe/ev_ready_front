@@ -30,6 +30,10 @@ export type BackendVehicle = {
   image?: string | null;
   description?: string | null;
   displayOrder?: number | null;
+  averageRating?: number | string | null;
+  ratingCount?: number | string | null;
+  approvedAverageRating?: number | string | null;
+  approvedRatingCount?: number | string | null;
 };
 
 export type Vehicle = {
@@ -47,6 +51,8 @@ export type Vehicle = {
   supportsAcCharging: boolean;
   supportsDcCharging: boolean;
   approxPricePkr: number;
+  averageRating: number | null;
+  ratingCount: number;
 };
 
 const fallbackEfficiencyKwhPerKm = 0.17;
@@ -60,6 +66,11 @@ export function normalizeVehicle(vehicle: Vehicle | BackendVehicle): Vehicle {
 
   const claimedRangeKm = toFiniteNumber(vehicle.rangeKm, 0);
   const batteryCapacityKwh = toFiniteNumber(vehicle.batteryCapacityKwh, 0);
+  const ratingCount = toWholeNumber(vehicle.ratingCount ?? vehicle.approvedRatingCount, 0);
+  const averageRating = toRatingValue(
+    vehicle.averageRating ?? vehicle.approvedAverageRating,
+    ratingCount,
+  );
   const efficiencyKwhPerKm =
     claimedRangeKm > 0 && batteryCapacityKwh > 0
       ? roundToThreeDecimals(batteryCapacityKwh / claimedRangeKm)
@@ -80,6 +91,8 @@ export function normalizeVehicle(vehicle: Vehicle | BackendVehicle): Vehicle {
     supportsAcCharging: true,
     supportsDcCharging: Boolean(vehicle.dcFastCharging),
     approxPricePkr: toFiniteNumber(vehicle.pricePkr, 0),
+    averageRating,
+    ratingCount,
   };
 }
 
@@ -88,7 +101,8 @@ function isNormalizedVehicle(vehicle: Vehicle | BackendVehicle): vehicle is Vehi
     typeof (vehicle as Vehicle).brand === 'string' &&
     typeof (vehicle as Vehicle).category === 'string' &&
     typeof (vehicle as Vehicle).claimedRangeKm === 'number' &&
-    typeof (vehicle as Vehicle).approxPricePkr === 'number'
+    typeof (vehicle as Vehicle).approxPricePkr === 'number' &&
+    typeof (vehicle as Vehicle).ratingCount === 'number'
   );
 }
 
@@ -133,6 +147,26 @@ function getConnectorType(chargerType: BackendVehicle['chargerType']) {
 
 function toFiniteNumber(value: number | null | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function toWholeNumber(value: number | string | null | undefined, fallback: number) {
+  const parsedValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsedValue);
+}
+
+function toRatingValue(value: number | string | null | undefined, ratingCount: number) {
+  const parsedValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
+
+  if (ratingCount <= 0 || !Number.isFinite(parsedValue) || parsedValue < 0) {
+    return null;
+  }
+
+  return Math.min(5, Math.round(parsedValue * 10) / 10);
 }
 
 function roundToThreeDecimals(value: number) {
