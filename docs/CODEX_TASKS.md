@@ -91,8 +91,26 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Vehicle Detail now includes a public review submission form backed by pending-review backend
   APIs, while public review display, averages, stars, comments, auth, and moderation UI remain
   deferred.
+- Admin Dashboard now includes protected vehicle review moderation for pending/approved review
+  workflows, while public review display, averages, stars, and comments remain deferred.
 
 ## Completed
+
+### 2026-05-29 - Admin Vehicle Review Moderation UI
+
+Added protected Admin Dashboard support for vehicle review moderation. Admin users can load
+paginated vehicle reviews, default to pending reviews, filter by backend-provided review status and
+optional vehicle ID, review submitted fields, enter an optional moderation reason, and update review
+status through the session-cookie admin API. Successful updates replace the review in local state
+and show a safe message. Public review display, averages, stars, comments, auth changes, charger
+feedback, and fake review data were not added.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-29 - Vehicle Review Form Wording Cleanup
 
