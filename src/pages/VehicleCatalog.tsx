@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import {
   normalizeVehicle,
@@ -602,6 +603,15 @@ function VehicleCard({ vehicle }: VehicleCardProps) {
             value={formatBoolean(vehicle.supportsDcCharging)}
           />
         ) : null}
+      </div>
+
+      <div className="mt-5">
+        <Link
+          className="inline-flex rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+          to={`/vehicles/${vehicle.id}`}
+        >
+          View details
+        </Link>
       </div>
     </article>
   );
