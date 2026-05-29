@@ -88,8 +88,37 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Dedicated Vehicle Detail and Charger Detail pages now load backend detail APIs from
   `/api/v1/vehicles/{id}` and `/api/v1/chargers/{id}`, with listing card links and conservative
   source-confidence warnings.
+- Vehicle Detail now includes a public review submission form backed by pending-review backend
+  APIs, while public review display, averages, stars, comments, auth, and moderation UI remain
+  deferred.
 
 ## Completed
+
+### 2026-05-29 - Vehicle Review Form Wording Cleanup
+
+Removed the extra frontend-appended review moderation sentence so successful vehicle review
+submissions show only the backend success message. Renamed the idle submit button label to
+`Submit Review` while keeping the existing submitting state, validation, and error handling.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/VehicleDetail.tsx`
+
+### 2026-05-29 - Vehicle Detail Public Review Submission
+
+Added a focused public review submission form to the Vehicle Detail page only. The page now loads
+backend vehicle review experience type options, validates rating and experience type before submit,
+posts reviews to `POST /api/v1/vehicles/{vehicleId}/reviews`, and shows a moderation/pending
+success message without reloading or clearing vehicle details. Public review display, average
+ratings, stars, comments, authentication, and charger feedback remain unimplemented.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/VehicleDetail.tsx`
+- `src/utils/api.ts`
 
 ### 2026-05-29 - Vehicle and Charger Detail Pages
 

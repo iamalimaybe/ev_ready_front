@@ -117,9 +117,13 @@ Scope:
 
 ### Vehicle Ratings and Reviews System
 
-Ratings and reviews are a future post-first-release feature. Users may later rate vehicles from 1 to 5 stars and add text reviews. Listing cards should later show rating count and average rating with max 1 decimal place, and dedicated vehicle detail pages should show individual reviews only after backend approved-review APIs, persistence, moderation, and spam handling exist.
+Vehicle detail pages can accept public vehicle review submissions through the backend. Submitted
+reviews are stored as pending and are not published immediately.
 
-This feature requires backend persistence, moderation/spam handling, and a backend-backed data flow. It should not be built as static fake data for the first release.
+Public review display remains deferred until approved-review APIs, admin moderation, and spam
+handling exist. Listing cards should later show rating count and average rating with max 1 decimal
+place only after real approved aggregate fields are available. Static fake reviews, fake ratings,
+and fake comments must not be shown.
 
 ## Supporting Tools
 
