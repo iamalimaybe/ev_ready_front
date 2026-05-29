@@ -2,6 +2,13 @@ import { API_BASE_URL, ApiError, type BackendErrorResponse } from './api';
 
 type JsonBody = Record<string, unknown> | unknown[];
 
+type VehicleReviewListParams = {
+  page?: number;
+  size?: number;
+  reviewStatus?: string;
+  vehicleId?: string;
+};
+
 const buildAdminUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
@@ -77,4 +84,30 @@ export const adminApiClient = {
   getContactStatusOptions: <T>() => request<T>('GET', '/api/v1/admin/contact-submissions/statuses'),
   updateContactStatus: <T>(contactId: number | string, contactStatus: string) =>
     request<T>('PATCH', `/api/v1/admin/contact-submissions/${contactId}/status`, { contactStatus }),
+  listVehicleReviews: <T>({ page = 0, size = 20, reviewStatus, vehicleId }: VehicleReviewListParams = {}) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+    });
+
+    if (reviewStatus) {
+      params.set('reviewStatus', reviewStatus);
+    }
+
+    if (vehicleId) {
+      params.set('vehicleId', vehicleId);
+    }
+
+    return request<T>('GET', `/api/v1/admin/vehicle-reviews?${params.toString()}`);
+  },
+  getVehicleReviewStatusOptions: <T>() => request<T>('GET', '/api/v1/admin/vehicle-reviews/statuses'),
+  updateVehicleReviewStatus: <T>(
+    reviewId: number | string,
+    reviewStatus: string,
+    moderationReason?: string,
+  ) =>
+    request<T>('PATCH', `/api/v1/admin/vehicle-reviews/${reviewId}/status`, {
+      reviewStatus,
+      moderationReason,
+    }),
 };

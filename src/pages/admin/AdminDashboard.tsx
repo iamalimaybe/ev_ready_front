@@ -32,6 +32,21 @@ type ContactSubmission = {
   sourcePage?: string | null;
 };
 
+type VehicleReview = {
+  id: number | string;
+  vehicleId?: number | string | null;
+  rating?: number | string | null;
+  reviewText?: string | null;
+  displayName?: string | null;
+  city?: string | null;
+  experienceType?: string | null;
+  reviewStatus?: string | null;
+  createdAt?: string | null;
+  moderatedAt?: string | null;
+  moderatedBy?: string | null;
+  moderationReason?: string | null;
+};
+
 type StatusOption = {
   value: string;
   label: string;
@@ -57,7 +72,12 @@ type PageState<T> = {
   error: string | null;
 };
 
-type AdminSection = 'leads' | 'contacts';
+type AdminSection = 'leads' | 'contacts' | 'vehicleReviews';
+
+type ModerationDraft = {
+  reviewStatus: string;
+  moderationReason: string;
+};
 
 const PAGE_SIZE = 20;
 
@@ -148,12 +168,14 @@ const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('leads');
   const [leadPage, setLeadPage] = useState<PageState<Lead>>(emptyPage<Lead>());
   const [contactPage, setContactPage] = useState<PageState<ContactSubmission>>(emptyPage<ContactSubmission>());
+  const [vehicleReviewPage, setVehicleReviewPage] = useState<PageState<VehicleReview>>(emptyPage<VehicleReview>());
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [updatingLeadId, setUpdatingLeadId] = useState<number | string | null>(null);
   const [updatingContactId, setUpdatingContactId] = useState<number | string | null>(null);
+  const [updatingVehicleReviewId, setUpdatingVehicleReviewId] = useState<number | string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [leadStatusOptions, setLeadStatusOptions] = useState<StatusOption[]>([]);
@@ -162,6 +184,12 @@ const AdminDashboard = () => {
   const [contactStatusOptions, setContactStatusOptions] = useState<StatusOption[]>([]);
   const [isContactStatusOptionsLoading, setIsContactStatusOptionsLoading] = useState(false);
   const [contactStatusOptionsError, setContactStatusOptionsError] = useState<string | null>(null);
+  const [vehicleReviewStatusOptions, setVehicleReviewStatusOptions] = useState<StatusOption[]>([]);
+  const [isVehicleReviewStatusOptionsLoading, setIsVehicleReviewStatusOptionsLoading] = useState(false);
+  const [vehicleReviewStatusOptionsError, setVehicleReviewStatusOptionsError] = useState<string | null>(null);
+  const [vehicleReviewStatusFilter, setVehicleReviewStatusFilter] = useState('PENDING');
+  const [vehicleReviewVehicleIdFilter, setVehicleReviewVehicleIdFilter] = useState('');
+  const [vehicleReviewDrafts, setVehicleReviewDrafts] = useState<Record<string, ModerationDraft>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -213,6 +241,42 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadVehicleReviews = async (
+    page: number,
+    reviewStatus = vehicleReviewStatusFilter,
+    vehicleId = vehicleReviewVehicleIdFilter,
+  ) => {
+    setVehicleReviewPage((current) => ({ ...current, page, isLoading: true, error: null }));
+
+    try {
+      const payload = await adminApiClient.listVehicleReviews<PagePayload<VehicleReview> | VehicleReview[]>({
+        page,
+        size: PAGE_SIZE,
+        reviewStatus: reviewStatus === 'all' ? undefined : reviewStatus,
+        vehicleId: vehicleId.trim() || undefined,
+      });
+      const nextPage = normalizePage(payload, page);
+      setVehicleReviewPage(nextPage);
+      setVehicleReviewDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts };
+
+        nextPage.items.forEach((review) => {
+          const reviewKey = String(review.id);
+          if (!nextDrafts[reviewKey]) {
+            nextDrafts[reviewKey] = {
+              reviewStatus: review.reviewStatus ?? '',
+              moderationReason: review.moderationReason ?? '',
+            };
+          }
+        });
+
+        return nextDrafts;
+      });
+    } catch (error) {
+      setVehicleReviewPage((current) => ({ ...current, isLoading: false, error: getAdminErrorMessage(error) }));
+    }
+  };
+
   const loadLeadStatusOptions = async () => {
     setIsLeadStatusOptionsLoading(true);
     setLeadStatusOptionsError(null);
@@ -259,12 +323,40 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadVehicleReviewStatusOptions = async () => {
+    setIsVehicleReviewStatusOptionsLoading(true);
+    setVehicleReviewStatusOptionsError(null);
+
+    try {
+      const options = await adminApiClient.getVehicleReviewStatusOptions<StatusOption[]>();
+      const validOptions = Array.isArray(options)
+        ? options.filter((option) => typeof option.value === 'string' && typeof option.label === 'string')
+        : [];
+
+      setVehicleReviewStatusOptions(validOptions);
+      if (validOptions.length === 0) {
+        setVehicleReviewStatusOptionsError(
+          'Vehicle review status options are not available. Review moderation is disabled for now.',
+        );
+      }
+    } catch {
+      setVehicleReviewStatusOptions([]);
+      setVehicleReviewStatusOptionsError(
+        'Vehicle review status options could not be loaded. Review moderation is disabled for now.',
+      );
+    } finally {
+      setIsVehicleReviewStatusOptionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (authState === 'authenticated') {
       void loadLeadStatusOptions();
       void loadContactStatusOptions();
+      void loadVehicleReviewStatusOptions();
       void loadLeads(0);
       void loadContacts(0);
+      void loadVehicleReviews(0);
     }
   }, [authState]);
 
@@ -276,6 +368,79 @@ const AdminDashboard = () => {
       setSelectedLead(null);
       setSelectedContact(null);
       navigate('/admin/login');
+    }
+  };
+
+  const handleVehicleReviewStatusFilterChange = (nextStatus: string) => {
+    setVehicleReviewStatusFilter(nextStatus);
+    void loadVehicleReviews(0, nextStatus, vehicleReviewVehicleIdFilter);
+  };
+
+  const handleVehicleReviewVehicleIdFilterSubmit = () => {
+    void loadVehicleReviews(0, vehicleReviewStatusFilter, vehicleReviewVehicleIdFilter);
+  };
+
+  const updateVehicleReviewDraft = (
+    reviewId: number | string,
+    field: keyof ModerationDraft,
+    value: string,
+  ) => {
+    const reviewKey = String(reviewId);
+    setVehicleReviewDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [reviewKey]: {
+        reviewStatus: currentDrafts[reviewKey]?.reviewStatus ?? '',
+        moderationReason: currentDrafts[reviewKey]?.moderationReason ?? '',
+        [field]: value,
+      },
+    }));
+    setStatusMessage(null);
+    setStatusError(null);
+  };
+
+  const handleVehicleReviewStatusUpdate = async (review: VehicleReview) => {
+    const reviewKey = String(review.id);
+    const draft = vehicleReviewDrafts[reviewKey] ?? {
+      reviewStatus: review.reviewStatus ?? '',
+      moderationReason: review.moderationReason ?? '',
+    };
+
+    if (!draft.reviewStatus) {
+      setStatusError('Choose a review status before updating.');
+      return;
+    }
+
+    setUpdatingVehicleReviewId(review.id);
+    setStatusMessage(null);
+    setStatusError(null);
+
+    try {
+      const updatedReview = await adminApiClient.updateVehicleReviewStatus<VehicleReview>(
+        review.id,
+        draft.reviewStatus,
+        draft.moderationReason.trim() || undefined,
+      );
+      setVehicleReviewPage((current) => ({
+        ...current,
+        items: current.items.map((item) => (item.id === updatedReview.id ? updatedReview : item)),
+      }));
+      setVehicleReviewDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [reviewKey]: {
+          reviewStatus: updatedReview.reviewStatus ?? '',
+          moderationReason: updatedReview.moderationReason ?? '',
+        },
+      }));
+      setStatusMessage(
+        `Vehicle review ${updatedReview.id} status updated to ${formatStatusLabel(
+          updatedReview.reviewStatus,
+          vehicleReviewStatusOptions,
+        )}.`,
+      );
+    } catch {
+      setStatusError('Vehicle review status could not be updated. Please try again.');
+    } finally {
+      setUpdatingVehicleReviewId(null);
     }
   };
 
@@ -400,8 +565,8 @@ const AdminDashboard = () => {
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Internal admin</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Lead and contact visibility</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Read-only access to Get Help leads and Contact Us submissions. This view does not create
-            callback, booking, payment, or SLA commitments.
+            Access to Get Help leads, Contact Us submissions, and vehicle review moderation. This
+            view does not create callback, booking, payment, or SLA commitments.
           </p>
           <p className="mt-2 text-sm text-slate-500">Signed in as {formatValue(adminUser?.username)}</p>
         </div>
@@ -433,6 +598,15 @@ const AdminDashboard = () => {
           type="button"
         >
           Contact Submissions
+        </button>
+        <button
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            activeSection === 'vehicleReviews' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+          }`}
+          onClick={() => setActiveSection('vehicleReviews')}
+          type="button"
+        >
+          Vehicle Reviews
         </button>
       </div>
 
@@ -541,7 +715,7 @@ const AdminDashboard = () => {
             />
           ) : null}
         </section>
-      ) : (
+      ) : activeSection === 'contacts' ? (
         <section className="flex flex-col gap-4">
           <AdminSectionHeader
             count={contactPage.totalElements}
@@ -653,6 +827,173 @@ const AdminDashboard = () => {
               title="Contact details"
             />
           ) : null}
+        </section>
+      ) : (
+        <section className="flex flex-col gap-4">
+          <AdminSectionHeader
+            count={vehicleReviewPage.totalElements}
+            title="Vehicle Review Moderation"
+            onRefresh={() => void loadVehicleReviews(vehicleReviewPage.page)}
+          />
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            Approve only reviews that look safe and useful for public display later. Approval does
+            not mean EVReady has verified the claim.
+          </div>
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-3">
+            <label className="text-sm font-semibold text-slate-700">
+              Review status
+              <select
+                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                disabled={isVehicleReviewStatusOptionsLoading}
+                onChange={(event) => handleVehicleReviewStatusFilterChange(event.target.value)}
+                value={vehicleReviewStatusFilter}
+              >
+                <option value="all">All statuses</option>
+                {vehicleReviewStatusOptions.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700 md:col-span-2">
+              Vehicle ID
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) => setVehicleReviewVehicleIdFilter(event.target.value)}
+                  placeholder="Optional vehicle ID"
+                  type="text"
+                  value={vehicleReviewVehicleIdFilter}
+                />
+                <button
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  onClick={handleVehicleReviewVehicleIdFilterSubmit}
+                  type="button"
+                >
+                  Apply
+                </button>
+              </div>
+            </label>
+          </div>
+          {vehicleReviewPage.error ? <Alert message={vehicleReviewPage.error} /> : null}
+          {vehicleReviewStatusOptionsError ? <Alert message={vehicleReviewStatusOptionsError} /> : null}
+          {statusError ? <Alert message={statusError} /> : null}
+          {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">ID</th>
+                  <th className="px-4 py-3">Vehicle ID</th>
+                  <th className="px-4 py-3">Rating</th>
+                  <th className="px-4 py-3">Review</th>
+                  <th className="px-4 py-3">Display name</th>
+                  <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Experience</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Created</th>
+                  <th className="px-4 py-3">Moderated</th>
+                  <th className="px-4 py-3">Moderated by</th>
+                  <th className="px-4 py-3">Moderation reason</th>
+                  <th className="px-4 py-3">Update</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 align-top">
+                {vehicleReviewPage.items.map((review) => {
+                  const draft = vehicleReviewDrafts[String(review.id)] ?? {
+                    reviewStatus: review.reviewStatus ?? '',
+                    moderationReason: review.moderationReason ?? '',
+                  };
+
+                  return (
+                    <tr key={review.id}>
+                      <td className="px-4 py-3">{formatValue(review.id)}</td>
+                      <td className="px-4 py-3">{formatValue(review.vehicleId)}</td>
+                      <td className="px-4 py-3">{formatValue(review.rating)}</td>
+                      <td className="max-w-sm whitespace-pre-wrap px-4 py-3">{formatValue(review.reviewText)}</td>
+                      <td className="px-4 py-3">{formatValue(review.displayName)}</td>
+                      <td className="px-4 py-3">{formatValue(review.city)}</td>
+                      <td className="px-4 py-3">{formatValue(review.experienceType)}</td>
+                      <td className="px-4 py-3">
+                        {formatStatusLabel(review.reviewStatus, vehicleReviewStatusOptions)}
+                      </td>
+                      <td className="px-4 py-3">{formatDate(review.createdAt)}</td>
+                      <td className="px-4 py-3">{formatDate(review.moderatedAt)}</td>
+                      <td className="px-4 py-3">{formatValue(review.moderatedBy)}</td>
+                      <td className="max-w-xs whitespace-pre-wrap px-4 py-3">
+                        {formatValue(review.moderationReason)}
+                      </td>
+                      <td className="min-w-72 px-4 py-3">
+                        <div className="flex flex-col gap-2">
+                          <select
+                            aria-label={`Update vehicle review ${review.id} status`}
+                            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+                            disabled={
+                              updatingVehicleReviewId === review.id ||
+                              isVehicleReviewStatusOptionsLoading ||
+                              Boolean(vehicleReviewStatusOptionsError) ||
+                              vehicleReviewStatusOptions.length === 0
+                            }
+                            onChange={(event) =>
+                              updateVehicleReviewDraft(review.id, 'reviewStatus', event.target.value)
+                            }
+                            value={
+                              vehicleReviewStatusOptions.some((status) => status.value === draft.reviewStatus)
+                                ? draft.reviewStatus
+                                : ''
+                            }
+                          >
+                            <option value="" disabled>
+                              {isVehicleReviewStatusOptionsLoading ? 'Loading statuses...' : 'Select status'}
+                            </option>
+                            {vehicleReviewStatusOptions.map((status) => (
+                              <option key={status.value} value={status.value}>
+                                {status.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800"
+                            onChange={(event) =>
+                              updateVehicleReviewDraft(review.id, 'moderationReason', event.target.value)
+                            }
+                            placeholder="Optional moderation reason"
+                            type="text"
+                            value={draft.moderationReason}
+                          />
+                          <button
+                            className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            disabled={
+                              updatingVehicleReviewId === review.id ||
+                              isVehicleReviewStatusOptionsLoading ||
+                              Boolean(vehicleReviewStatusOptionsError) ||
+                              vehicleReviewStatusOptions.length === 0
+                            }
+                            onClick={() => void handleVehicleReviewStatusUpdate(review)}
+                            type="button"
+                          >
+                            {updatingVehicleReviewId === review.id ? 'Updating...' : 'Update'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!vehicleReviewPage.isLoading && vehicleReviewPage.items.length === 0 ? (
+              <EmptyState label="No vehicle reviews found." />
+            ) : null}
+            {vehicleReviewPage.isLoading ? <LoadingState label="Loading vehicle reviews..." /> : null}
+          </div>
+          <Pagination
+            isLoading={vehicleReviewPage.isLoading}
+            onNext={() => void loadVehicleReviews(vehicleReviewPage.page + 1)}
+            onPrevious={() => void loadVehicleReviews(vehicleReviewPage.page - 1)}
+            page={vehicleReviewPage.page}
+            showNext={hasNextPage(vehicleReviewPage)}
+          />
         </section>
       )}
     </main>

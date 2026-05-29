@@ -120,10 +120,13 @@ Scope:
 Vehicle detail pages can accept public vehicle review submissions through the backend. Submitted
 reviews are stored as pending and are not published immediately.
 
-Public review display remains deferred until approved-review APIs, admin moderation, and spam
-handling exist. Listing cards should later show rating count and average rating with max 1 decimal
-place only after real approved aggregate fields are available. Static fake reviews, fake ratings,
-and fake comments must not be shown.
+The protected admin dashboard can moderate submitted vehicle reviews for later public display.
+Approval does not mean EVReady has verified the user's claim.
+
+Public review display remains deferred until approved-review APIs and spam handling exist. Listing
+cards should later show rating count and average rating with max 1 decimal place only after real
+approved aggregate fields are available. Static fake reviews, fake ratings, and fake comments must
+not be shown.
 
 ## Supporting Tools
 
