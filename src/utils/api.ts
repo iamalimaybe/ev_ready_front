@@ -31,6 +31,48 @@ export class ApiError extends Error {
 
 type JsonBody = Record<string, unknown> | unknown[];
 
+export type VehicleReviewExperienceTypeOption = {
+  value: string;
+  label: string;
+  description?: string | null;
+  displayOrder?: number | null;
+};
+
+export type VehicleReviewSubmission = {
+  rating: number;
+  experienceType: string;
+  reviewText?: string;
+  displayName?: string;
+  city?: string;
+};
+
+export type VehicleReviewSubmissionResponse = {
+  id?: string | number;
+  status?: string;
+  message?: string;
+};
+
+export type PublicVehicleReview = {
+  id?: string | number;
+  rating?: number | string | null;
+  reviewText?: string | null;
+  displayName?: string | null;
+  city?: string | null;
+  experienceType?: string | null;
+  createdAt?: string | null;
+};
+
+export type PageResponse<T> = {
+  content?: T[];
+  number?: number;
+  page?: number;
+  size?: number;
+  totalPages?: number;
+  totalElements?: number;
+  first?: boolean;
+  last?: boolean;
+};
+
 interface RequestOptions {
   body?: JsonBody;
 }
@@ -106,4 +148,20 @@ const request = async <T>(method: "GET" | "POST", path: string, options: Request
 export const apiClient = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body: JsonBody) => request<T>("POST", path, { body }),
+};
+
+export const vehicleReviewApi = {
+  getExperienceTypes: () =>
+    apiClient.get<VehicleReviewExperienceTypeOption[]>(
+      "/api/v1/vehicles/reviews/experience-types",
+    ),
+  submitReview: (vehicleId: string, review: VehicleReviewSubmission) =>
+    apiClient.post<VehicleReviewSubmissionResponse>(
+      `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/reviews`,
+      review,
+    ),
+  getApprovedReviews: (vehicleId: string, page = 0, size = 10) =>
+    apiClient.get<PageResponse<PublicVehicleReview> | PublicVehicleReview[]>(
+      `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/reviews?page=${page}&size=${size}`,
+    ),
 };

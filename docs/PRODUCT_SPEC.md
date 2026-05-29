@@ -117,9 +117,19 @@ Scope:
 
 ### Vehicle Ratings and Reviews System
 
-Ratings and reviews are a future post-first-release feature. Users may later rate vehicles from 1 to 5 stars and add text reviews. Listing cards should later show rating count and average rating with max 1 decimal place, and a vehicle detail view or modal should show individual reviews.
+Vehicle detail pages can accept public vehicle review submissions through the backend. Submitted
+reviews are stored as pending and are not published immediately.
 
-This feature requires backend persistence, moderation/spam handling, and a backend-backed data flow. It should not be built as static fake data for the first release.
+The protected admin dashboard can moderate submitted vehicle reviews for later public display.
+Approval does not mean EVReady has verified the user's claim.
+
+Approved-only vehicle rating aggregates are shown on vehicle cards and vehicle detail pages when
+approved ratings exist. Vehicle detail pages also show approved public reviews returned by the
+backend. Pending, rejected, and spam reviews must not be shown publicly.
+
+Ratings and reviews are community-submitted and moderated before display. They are not official
+ratings, and they do not mean EVReady has verified every claim. Static fake reviews, fake ratings,
+and fake comments must not be shown.
 
 ## Supporting Tools
 
@@ -142,6 +152,12 @@ The catalog should include both EV bikes and EV cars from backend data as it bec
 
 Vehicle API responses include `verificationStatus`, and catalog cards should show small source-confidence badges while still asking users to verify specs and price before purchase.
 
+Dedicated vehicle detail pages at `/vehicles/:id` are the chosen direction for deeper vehicle information. Modal-based review/comment display is deferred and should not be added before backend approved-review APIs exist.
+
+Vehicle cards and detail pages may show approved-only rating aggregates from the backend. Unrated
+vehicles should use conservative wording such as be the first to review instead of fake ratings.
+Catalog browsing uses a simple load-more pattern so filters remain lightweight on mobile.
+
 ### Charger Directory
 
 Shows backend-backed public charger information in production. This supports charging confidence
@@ -150,6 +166,11 @@ but must not become the product's main identity.
 First release must not claim live charger status unless the backend has a reliable live source and update process.
 
 Charger API responses are expected to include `verificationStatus`, separate from operational `status`, and directory cards should show small source-confidence badges while still asking users to verify charger details before travel.
+
+Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability, and modal-based feedback/review display remains deferred.
+
+Directory browsing uses a simple load-more pattern. Charger reviews, feedback, ratings, and live
+availability remain deferred.
 
 ### Guides and Content
 

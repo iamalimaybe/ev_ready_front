@@ -202,6 +202,10 @@ Implications:
 - Plan backend and moderation needs before implementation.
 - Later listing cards can show rating count and average rating with max 1 decimal place once real persisted reviews exist.
 
+Status:
+
+- Partially superseded by the 2026-05-29 approved-only vehicle review display decision.
+
 ## 2026-05-26 - Charger Data Strategy Before More Charger UI
 
 Decision:
@@ -336,3 +340,64 @@ Implications:
 - Public navigation should not prominently expose admin access.
 - Broader admin capabilities remain deferred until access control, auditability, moderation, and
   operational ownership are planned.
+
+## 2026-05-29 - Dedicated Public Detail Pages
+
+Decision:
+
+- Use dedicated routes for public vehicle and charger details instead of future modal-based
+  review/comment display.
+
+Reason:
+
+- Detail pages give users stable links for backend-backed catalog and directory records while
+  keeping ratings, reviews, comments, and charger feedback deferred until approved backend APIs and
+  moderation support exist.
+
+Implications:
+
+- Vehicle cards link to `/vehicles/:id`.
+- Charger cards link to `/chargers/:id`.
+- Detail pages must keep source-confidence and verify-before-purchase/travel wording visible.
+- Do not show fake ratings, fake stars, fake comments, or modal review UI before the backend review
+  system is approved and implemented.
+
+## 2026-05-29 - Approved-Only Vehicle Review Display
+
+Decision:
+
+- Show vehicle rating aggregates and public vehicle reviews only from backend approved-review data.
+
+Reason:
+
+- Community reviews can help first-time EV buyers, but pending, rejected, spam, or fake review data
+  would damage trust and could imply claims that EVReady has not verified.
+
+Implications:
+
+- Vehicle cards and detail pages may show approved aggregate rating/count fields from backend
+  vehicle responses.
+- Vehicle detail pages may show approved public reviews from the backend public review endpoint.
+- Newly submitted pending reviews must not appear publicly until approved.
+- Ratings and reviews must be framed as community-submitted and moderated, not official EVReady
+  verification.
+
+## 2026-05-29 - Public Listings Use Load More
+
+Decision:
+
+- Public vehicle and charger listing pages use mobile-friendly load-more browsing instead of
+  classic page controls when the frontend has the filtered list available.
+
+Reason:
+
+- The catalog and directory are browsing aids, and showing a small first batch with explicit load
+  more keeps mobile pages shorter while preserving the user's filter context when moving into
+  detail pages and back.
+
+Implications:
+
+- Vehicle Catalog and Charger Directory should show six records initially and reveal more in small
+  batches.
+- Listing filter state should be represented in URL query parameters rather than browser storage.
+- Detail pages remain the preferred place for deeper information and review access.

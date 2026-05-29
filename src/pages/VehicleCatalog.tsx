@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import {
   normalizeVehicle,
@@ -56,7 +57,7 @@ type Brand = {
 };
 
 const allFilterValue = 'all';
-const vehiclePageSize = 12;
+const vehicleVisibleStep = 6;
 
 const initialFilters: FilterValues = {
   category: allFilterValue,
@@ -106,6 +107,38 @@ const backendSortValues: Record<SortOption, string> = {
   'range-desc': 'rangeDesc',
   'range-asc': 'rangeAsc',
 };
+
+const categoryFilterValues: CategoryFilter[] = ['all', 'Bike', 'Car'];
+const priceFilterValues: PriceFilter[] = [
+  'all',
+  'under-100k',
+  'under-200k',
+  'under-300k',
+  'under-400k',
+  'under-500k',
+  'under-600k',
+  'under-700k',
+  'under-800k',
+  'under-900k',
+  'under-1m',
+  'under-1-5m',
+];
+const rangeFilterValues: RangeFilter[] = [
+  'all',
+  '50-plus',
+  '80-plus',
+  '150-plus',
+  '250-plus',
+  '350-plus',
+];
+const dcChargingFilterValues: DcChargingFilter[] = ['all', 'yes', 'no'];
+const sortOptionValues: SortOption[] = [
+  'recommended',
+  'price-asc',
+  'price-desc',
+  'range-desc',
+  'range-asc',
+];
 
 const verificationStatusLabels: Record<VehicleVerificationStatus, string> = {
   OFFICIAL: 'Official source-backed',
@@ -195,14 +228,106 @@ function normalizeCatalogVehicle(vehicle: CatalogBackendVehicle): CatalogVehicle
   };
 }
 
+function getFiltersFromSearchParams(searchParams: URLSearchParams): FilterValues {
+  const category = getAllowedSearchValue(
+    searchParams,
+    'category',
+    categoryFilterValues,
+    initialFilters.category,
+  );
+
+  return {
+    category,
+    vehicleType: searchParams.get('vehicleType') || initialFilters.vehicleType,
+    brandId: searchParams.get('brandId') || initialFilters.brandId,
+    price: getAllowedSearchValue(searchParams, 'price', priceFilterValues, initialFilters.price),
+    range: getAllowedSearchValue(searchParams, 'range', rangeFilterValues, initialFilters.range),
+    dcCharging:
+      category === 'Bike'
+        ? 'all'
+        : getAllowedSearchValue(
+            searchParams,
+            'dcCharging',
+            dcChargingFilterValues,
+            initialFilters.dcCharging,
+          ),
+    sort: getAllowedSearchValue(searchParams, 'sort', sortOptionValues, initialFilters.sort),
+  };
+}
+
+function getAllowedSearchValue<Value extends string>(
+  searchParams: URLSearchParams,
+  key: string,
+  allowedValues: Value[],
+  fallback: Value,
+) {
+  const value = searchParams.get(key);
+
+  return value && allowedValues.includes(value as Value) ? (value as Value) : fallback;
+}
+
+function getVisibleCountFromSearchParams(searchParams: URLSearchParams) {
+  const visibleCount = Number(searchParams.get('visible'));
+
+  if (!Number.isFinite(visibleCount) || visibleCount < vehicleVisibleStep) {
+    return vehicleVisibleStep;
+  }
+
+  return Math.floor(visibleCount / vehicleVisibleStep) * vehicleVisibleStep;
+}
+
+function buildListingSearchParams(filters: FilterValues, visibleCount: number) {
+  const params = new URLSearchParams();
+
+  if (filters.category !== initialFilters.category) {
+    params.set('category', filters.category);
+  }
+
+  if (filters.vehicleType !== initialFilters.vehicleType) {
+    params.set('vehicleType', filters.vehicleType);
+  }
+
+  if (filters.brandId !== initialFilters.brandId) {
+    params.set('brandId', filters.brandId);
+  }
+
+  if (filters.price !== initialFilters.price) {
+    params.set('price', filters.price);
+  }
+
+  if (filters.range !== initialFilters.range) {
+    params.set('range', filters.range);
+  }
+
+  if (filters.dcCharging !== initialFilters.dcCharging && filters.category !== 'Bike') {
+    params.set('dcCharging', filters.dcCharging);
+  }
+
+  if (filters.sort !== initialFilters.sort) {
+    params.set('sort', filters.sort);
+  }
+
+  if (visibleCount > vehicleVisibleStep) {
+    params.set('visible', String(visibleCount));
+  }
+
+  return params;
+}
+
 export default function VehicleCatalog() {
-  const [filters, setFilters] = useState<FilterValues>(initialFilters);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState<FilterValues>(() =>
+    getFiltersFromSearchParams(searchParams),
+  );
   const [vehicles, setVehicles] = useState<CatalogVehicle[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(() =>
+    getVisibleCountFromSearchParams(searchParams),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [brandErrorMessage, setBrandErrorMessage] = useState<string | null>(null);
+  const listingSearch = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
   const vehicleQuery = useMemo(() => buildVehicleQuery(filters), [
     filters.brandId,
@@ -212,6 +337,11 @@ export default function VehicleCatalog() {
     filters.range,
     filters.sort,
   ]);
+
+  useEffect(() => {
+    setFilters(getFiltersFromSearchParams(searchParams));
+    setVisibleCount(getVisibleCountFromSearchParams(searchParams));
+  }, [searchParams]);
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -231,7 +361,6 @@ export default function VehicleCatalog() {
         }
 
         setVehicles(vehicleResponse.map(normalizeCatalogVehicle));
-        setCurrentPage(1);
       })
       .catch((error: unknown) => {
         if (!isCurrentRequest) {
@@ -344,32 +473,49 @@ export default function VehicleCatalog() {
     });
   }, [filters, vehicles]);
 
-  const totalPages = Math.ceil(filteredVehicles.length / vehiclePageSize);
-  const firstVehicleIndex = (currentPage - 1) * vehiclePageSize;
-  const lastVehicleIndex = Math.min(firstVehicleIndex + vehiclePageSize, filteredVehicles.length);
-  const paginatedVehicles = filteredVehicles.slice(firstVehicleIndex, lastVehicleIndex);
+  const visibleVehicleCount = Math.min(visibleCount, filteredVehicles.length);
+  const visibleVehicles = filteredVehicles.slice(0, visibleVehicleCount);
 
   function updateFilter<Key extends keyof FilterValues>(key: Key, value: FilterValues[Key]) {
-    setFilters((currentFilters) => ({
-      ...currentFilters,
+    const nextFilters = {
+      ...filters,
       [key]: value,
-    }));
-    setCurrentPage(1);
+    };
+
+    setFilters(nextFilters);
+    setVisibleCount(vehicleVisibleStep);
+    setSearchParams(buildListingSearchParams(nextFilters, vehicleVisibleStep));
   }
 
   function updateCategory(category: CategoryFilter) {
-    setFilters((currentFilters) => ({
-      ...currentFilters,
+    const nextFilters = {
+      ...filters,
       category,
       vehicleType: allFilterValue,
       brandId: allFilterValue,
-      dcCharging: category === 'Bike' ? 'all' : currentFilters.dcCharging,
-    }));
-    setCurrentPage(1);
+      dcCharging: category === 'Bike' ? 'all' : filters.dcCharging,
+    };
+
+    setFilters(nextFilters);
+    setVisibleCount(vehicleVisibleStep);
+    setSearchParams(buildListingSearchParams(nextFilters, vehicleVisibleStep));
+  }
+
+  function clearFilters() {
+    setFilters(initialFilters);
+    setVisibleCount(vehicleVisibleStep);
+    setSearchParams(buildListingSearchParams(initialFilters, vehicleVisibleStep));
+  }
+
+  function loadMoreVehicles() {
+    const nextVisibleCount = visibleCount + vehicleVisibleStep;
+
+    setVisibleCount(nextVisibleCount);
+    setSearchParams(buildListingSearchParams(filters, nextVisibleCount));
   }
 
   return (
-    <PageShell eyebrow="Catalog" title="Vehicle Catalog">
+    <PageShell eyebrow="Catalogue" title="EV Catalogue">
       <div className="space-y-6">
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
           <p>
@@ -503,53 +649,50 @@ export default function VehicleCatalog() {
               <option value="range-asc">Range: Low to High</option>
             </select>
           </label>
+
+          <div className="flex items-end">
+            <button
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700"
+              type="button"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            Loading vehicle catalog...
+            Loading EV catalogue...
           </div>
         ) : errorMessage ? (
           <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
-            <p className="font-semibold">Vehicle catalog could not be loaded.</p>
+            <p className="font-semibold">EV catalogue could not be loaded.</p>
             <p className="mt-1">{errorMessage}</p>
           </div>
         ) : filteredVehicles.length > 0 ? (
           <div className="space-y-4">
             <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Showing {firstVehicleIndex + 1}-{lastVehicleIndex} of {filteredVehicles.length}{' '}
-                vehicles
+                Showing 1-{visibleVehicleCount} of {filteredVehicles.length} vehicles
               </span>
-
-              <div className="flex items-center gap-3">
-                <button
-                  className="rounded-md border border-slate-300 px-3 py-2 font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                >
-                  Previous
-                </button>
-                <span className="whitespace-nowrap">
-                  Page {currentPage} / {totalPages}
-                </span>
-                <button
-                  className="rounded-md border border-slate-300 px-3 py-2 font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                >
-                  Next
-                </button>
-              </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {paginatedVehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+              {visibleVehicles.map((vehicle) => (
+                <VehicleCard key={vehicle.id} listingSearch={listingSearch} vehicle={vehicle} />
               ))}
             </div>
+
+            {visibleCount < filteredVehicles.length ? (
+              <button
+                className="w-full rounded-md border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
+                type="button"
+                onClick={loadMoreVehicles}
+              >
+                Load more
+              </button>
+            ) : null}
           </div>
         ) : (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -563,29 +706,40 @@ export default function VehicleCatalog() {
 }
 
 type VehicleCardProps = {
+  listingSearch: string;
   vehicle: CatalogVehicle;
 };
 
-function VehicleCard({ vehicle }: VehicleCardProps) {
+function VehicleCard({ listingSearch, vehicle }: VehicleCardProps) {
+  const detailPath = `/vehicles/${vehicle.id}${listingSearch}`;
+
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
             {vehicle.category} - {vehicle.vehicleType}
           </p>
           <h2 className="mt-1 text-xl font-bold text-slate-950">
             {vehicle.brand} {vehicle.model}
           </h2>
-          <span
-            className={`mt-2 inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold ${verificationStatusClasses[vehicle.verificationStatus]}`}
-          >
-            {verificationStatusLabels[vehicle.verificationStatus]}
-          </span>
         </div>
         <p className="text-sm font-semibold text-slate-800">
           {currencyFormatter.format(vehicle.approxPricePkr)}
         </p>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span
+          className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold ${verificationStatusClasses[vehicle.verificationStatus]}`}
+        >
+          {verificationStatusLabels[vehicle.verificationStatus]}
+        </span>
+        <RatingAction
+          averageRating={vehicle.averageRating}
+          ratingCount={vehicle.ratingCount}
+          to={`${detailPath}${vehicle.ratingCount > 0 ? '#reviews' : '#write-review'}`}
+        />
       </div>
 
       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
@@ -602,6 +756,15 @@ function VehicleCard({ vehicle }: VehicleCardProps) {
             value={formatBoolean(vehicle.supportsDcCharging)}
           />
         ) : null}
+      </div>
+
+      <div className="mt-5">
+        <Link
+          className="inline-flex rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+          to={detailPath}
+        >
+          View details
+        </Link>
       </div>
     </article>
   );
@@ -623,4 +786,51 @@ function SpecRow({ label, value }: SpecRowProps) {
 
 function formatBoolean(value: boolean): string {
   return value ? 'Yes' : 'No';
+}
+
+type RatingActionProps = {
+  averageRating: number | null;
+  ratingCount: number;
+  to: string;
+};
+
+function RatingAction({ averageRating, ratingCount, to }: RatingActionProps) {
+  if (!averageRating || ratingCount <= 0) {
+    return (
+      <Link
+        aria-label="Write the first review for this vehicle"
+        className="inline-flex rounded-md border border-brand-200 px-3 py-2 text-sm font-semibold text-brand-700 transition hover:border-brand-500 hover:bg-brand-50 hover:text-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-200"
+        title="Write the first review"
+        to={to}
+      >
+        Be the first to review
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      aria-label={`Read ${ratingCount} approved ${ratingCount === 1 ? 'review' : 'reviews'} for this vehicle`}
+      className="inline-flex flex-wrap items-center justify-start gap-2 rounded-md border border-amber-200 px-3 py-2 text-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-200 sm:justify-end"
+      title="Read approved reviews"
+      to={to}
+    >
+      <span className="font-semibold text-amber-600" aria-hidden="true">
+        {renderStars(averageRating)}
+      </span>
+      <span className="font-semibold text-slate-800">
+        {formatRating(averageRating)}/5 · {ratingCount} {ratingCount === 1 ? 'review' : 'reviews'}
+      </span>
+    </Link>
+  );
+}
+
+function renderStars(rating: number) {
+  const roundedRating = Math.round(rating);
+
+  return Array.from({ length: 5 }, (_, index) => (index < roundedRating ? '★' : '☆')).join('');
+}
+
+function formatRating(rating: number) {
+  return rating.toFixed(1);
 }
