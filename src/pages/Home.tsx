@@ -52,11 +52,11 @@ const featureCards = [
   },
   {
     category: 'Supporting tools',
-    title: 'Vehicle Catalog',
+    title: 'EV Catalogue',
     description:
       'Browse EV specs, practical range estimates, connector types, and approximate prices.',
     to: '/vehicles',
-    action: 'Browse vehicles',
+    action: 'Browse EVs',
   },
   {
     category: 'Supporting tools',

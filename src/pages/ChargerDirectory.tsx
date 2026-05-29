@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import { ApiError, apiClient } from '../utils/api';
 
@@ -55,7 +55,7 @@ type FilterValues = {
 };
 
 const allFilterValue = 'all';
-const chargerPageSize = 12;
+const chargerVisibleStep = 6;
 
 const initialFilters: FilterValues = {
   city: allFilterValue,
@@ -69,6 +69,8 @@ const selectInputClass =
 
 const chargingTypeOptions: ChargingType[] = ['AC', 'DC', 'AC_DC'];
 const statusOptions: ChargerStatus[] = ['OPERATIONAL', 'LIMITED', 'COMING_SOON', 'UNKNOWN'];
+const chargingTypeFilterOptions: ChargingTypeFilter[] = ['all', ...chargingTypeOptions];
+const statusFilterOptions: ChargerStatusFilter[] = ['all', ...statusOptions];
 
 const verificationStatusLabels: Record<ChargerVerificationStatus, string> = {
   OFFICIAL: 'Operator source-backed',
@@ -151,17 +153,84 @@ function normalizeCharger(charger: BackendCharger): Charger {
   };
 }
 
+function getFiltersFromSearchParams(searchParams: URLSearchParams): FilterValues {
+  return {
+    city: searchParams.get('city') || initialFilters.city,
+    chargerTypeId: searchParams.get('chargerTypeId') || initialFilters.chargerTypeId,
+    chargingType: getAllowedSearchValue(
+      searchParams,
+      'chargingType',
+      chargingTypeFilterOptions,
+      initialFilters.chargingType,
+    ),
+    status: getAllowedSearchValue(searchParams, 'status', statusFilterOptions, initialFilters.status),
+  };
+}
+
+function getAllowedSearchValue<Value extends string>(
+  searchParams: URLSearchParams,
+  key: string,
+  allowedValues: Value[],
+  fallback: Value,
+) {
+  const value = searchParams.get(key);
+
+  return value && allowedValues.includes(value as Value) ? (value as Value) : fallback;
+}
+
+function getVisibleCountFromSearchParams(searchParams: URLSearchParams) {
+  const visibleCount = Number(searchParams.get('visible'));
+
+  if (!Number.isFinite(visibleCount) || visibleCount < chargerVisibleStep) {
+    return chargerVisibleStep;
+  }
+
+  return Math.floor(visibleCount / chargerVisibleStep) * chargerVisibleStep;
+}
+
+function buildListingSearchParams(filters: FilterValues, visibleCount: number) {
+  const params = new URLSearchParams();
+
+  if (filters.city !== initialFilters.city) {
+    params.set('city', filters.city);
+  }
+
+  if (filters.chargerTypeId !== initialFilters.chargerTypeId) {
+    params.set('chargerTypeId', filters.chargerTypeId);
+  }
+
+  if (filters.chargingType !== initialFilters.chargingType) {
+    params.set('chargingType', filters.chargingType);
+  }
+
+  if (filters.status !== initialFilters.status) {
+    params.set('status', filters.status);
+  }
+
+  if (visibleCount > chargerVisibleStep) {
+    params.set('visible', String(visibleCount));
+  }
+
+  return params;
+}
+
 export default function ChargerDirectory() {
-  const [filters, setFilters] = useState<FilterValues>(initialFilters);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState<FilterValues>(() =>
+    getFiltersFromSearchParams(searchParams),
+  );
   const [chargers, setChargers] = useState<Charger[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [chargerTypes, setChargerTypes] = useState<ChargerType[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(() =>
+    getVisibleCountFromSearchParams(searchParams),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cityOptionsErrorMessage, setCityOptionsErrorMessage] = useState<string | null>(null);
   const [hasLoadedCityOptions, setHasLoadedCityOptions] = useState(false);
   const [chargerTypesErrorMessage, setChargerTypesErrorMessage] = useState<string | null>(null);
+  const listingSearch = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
   const chargerQuery = useMemo(() => buildChargerQuery(filters), [
     filters.chargerTypeId,
@@ -170,10 +239,13 @@ export default function ChargerDirectory() {
     filters.status,
   ]);
 
-  const totalPages = Math.ceil(chargers.length / chargerPageSize);
-  const firstChargerIndex = (currentPage - 1) * chargerPageSize;
-  const lastChargerIndex = Math.min(firstChargerIndex + chargerPageSize, chargers.length);
-  const paginatedChargers = chargers.slice(firstChargerIndex, lastChargerIndex);
+  const visibleChargerCount = Math.min(visibleCount, chargers.length);
+  const visibleChargers = chargers.slice(0, visibleChargerCount);
+
+  useEffect(() => {
+    setFilters(getFiltersFromSearchParams(searchParams));
+    setVisibleCount(getVisibleCountFromSearchParams(searchParams));
+  }, [searchParams]);
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -272,7 +344,6 @@ export default function ChargerDirectory() {
         }
 
         setChargers(chargerResponse.map(normalizeCharger));
-        setCurrentPage(1);
       })
       .catch((error: unknown) => {
         if (!isCurrentRequest) {
@@ -294,11 +365,27 @@ export default function ChargerDirectory() {
   }, [chargerQuery]);
 
   function updateFilter<Key extends keyof FilterValues>(key: Key, value: FilterValues[Key]) {
-    setFilters((currentFilters) => ({
-      ...currentFilters,
+    const nextFilters = {
+      ...filters,
       [key]: value,
-    }));
-    setCurrentPage(1);
+    };
+
+    setFilters(nextFilters);
+    setVisibleCount(chargerVisibleStep);
+    setSearchParams(buildListingSearchParams(nextFilters, chargerVisibleStep));
+  }
+
+  function clearFilters() {
+    setFilters(initialFilters);
+    setVisibleCount(chargerVisibleStep);
+    setSearchParams(buildListingSearchParams(initialFilters, chargerVisibleStep));
+  }
+
+  function loadMoreChargers() {
+    const nextVisibleCount = visibleCount + chargerVisibleStep;
+
+    setVisibleCount(nextVisibleCount);
+    setSearchParams(buildListingSearchParams(filters, nextVisibleCount));
   }
 
   return (
@@ -307,7 +394,7 @@ export default function ChargerDirectory() {
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
           Charger details can change and reported status is not live availability. Source-confidence
           labels describe the data source, not a physical EVReady audit. Verify location, connector
-          support, pricing, access, and availability before travelling.
+          support, access, pricing, and operation before travel.
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -390,6 +477,16 @@ export default function ChargerDirectory() {
               ))}
             </select>
           </label>
+
+          <div className="flex items-end">
+            <button
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700"
+              type="button"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -405,37 +502,30 @@ export default function ChargerDirectory() {
           <div className="space-y-4">
             <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Showing {firstChargerIndex + 1}-{lastChargerIndex} of {chargers.length} chargers
+                Showing 1-{visibleChargerCount} of {chargers.length} chargers
               </span>
-
-              <div className="flex items-center gap-3">
-                <button
-                  className="rounded-md border border-slate-300 px-3 py-2 font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                >
-                  Previous
-                </button>
-                <span className="whitespace-nowrap">
-                  Page {currentPage} / {totalPages}
-                </span>
-                <button
-                  className="rounded-md border border-slate-300 px-3 py-2 font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                >
-                  Next
-                </button>
-              </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {paginatedChargers.map((charger) => (
-                <ChargerCard key={charger.id} charger={charger} chargerTypes={chargerTypes} />
+              {visibleChargers.map((charger) => (
+                <ChargerCard
+                  key={charger.id}
+                  charger={charger}
+                  chargerTypes={chargerTypes}
+                  listingSearch={listingSearch}
+                />
               ))}
             </div>
+
+            {visibleCount < chargers.length ? (
+              <button
+                className="w-full rounded-md border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
+                type="button"
+                onClick={loadMoreChargers}
+              >
+                Load more
+              </button>
+            ) : null}
           </div>
         ) : (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -450,9 +540,10 @@ export default function ChargerDirectory() {
 type ChargerCardProps = {
   charger: Charger;
   chargerTypes: ChargerType[];
+  listingSearch: string;
 };
 
-function ChargerCard({ charger, chargerTypes }: ChargerCardProps) {
+function ChargerCard({ charger, chargerTypes, listingSearch }: ChargerCardProps) {
   const sourceCheckedDate = formatDate(charger.sourceCheckedAt);
   const mapLink = buildMapsLink(charger.latitude, charger.longitude);
   const noteLines = getNoteLines(charger);
@@ -512,7 +603,7 @@ function ChargerCard({ charger, chargerTypes }: ChargerCardProps) {
       <div className="mt-5">
         <Link
           className="inline-flex rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
-          to={`/chargers/${charger.id}`}
+          to={`/chargers/${charger.id}${listingSearch}`}
         >
           View details
         </Link>

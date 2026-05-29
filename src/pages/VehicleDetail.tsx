@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import { normalizeVehicle, type BackendVehicle, type Vehicle } from '../data/vehicles';
 import {
@@ -80,7 +80,7 @@ const initialReviewForm: ReviewFormState = {
 const inputClass =
   'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
 
-const approvedReviewPageSize = 10;
+const approvedReviewPageSize = 5;
 
 const emptyApprovedReviewPage = (page = 0): ApprovedReviewPageState => ({
   reviews: [],
@@ -153,6 +153,9 @@ function normalizeApprovedReviewPage(
 
 export default function VehicleDetail() {
   const { id } = useParams();
+  const location = useLocation();
+  const reviewFormRef = useRef<HTMLElement>(null);
+  const approvedReviewsRef = useRef<HTMLElement>(null);
   const [vehicle, setVehicle] = useState<VehicleDetailRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -220,6 +223,32 @@ export default function VehicleDetail() {
       isCurrentRequest = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (isLoading || !vehicle) {
+      return;
+    }
+
+    const target =
+      location.hash === '#write-review'
+        ? reviewFormRef.current
+        : location.hash === '#reviews'
+          ? approvedReviewsRef.current
+          : null;
+
+    if (!target) {
+      return;
+    }
+
+    const scrollTimer = window.setTimeout(() => {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 0);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [isLoading, location.hash, vehicle]);
 
   useEffect(() => {
     if (!id) {
@@ -369,13 +398,29 @@ export default function VehicleDetail() {
       });
   }
 
-  return (
-    <PageShell eyebrow="Vehicle details" title={vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Vehicle Details'}>
-      <div className="space-y-6">
-        <Link className="text-sm font-semibold text-brand-700 hover:text-brand-800" to="/vehicles">
-          Back to Vehicle Catalog
-        </Link>
+  function scrollToReviewForm() {
+    reviewFormRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }
 
+  const backLink = (
+    <Link
+      className="inline-flex w-full justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
+      to={`/vehicles${location.search}`}
+    >
+      Back to EV Catalogue
+    </Link>
+  );
+
+  return (
+    <PageShell
+      actions={backLink}
+      eyebrow="Vehicle details"
+      title={vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Vehicle Details'}
+    >
+      <div className="space-y-6">
         {isLoading ? (
           <StateMessage>Loading vehicle details...</StateMessage>
         ) : notFoundMessage ? (
@@ -394,28 +439,39 @@ export default function VehicleDetail() {
             </div>
 
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
                     {vehicle.category} - {vehicle.vehicleType}
                   </p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-950">
                     {vehicle.brand} {vehicle.model}
                   </h2>
+                </div>
+                <p className="text-sm font-semibold text-slate-800">
+                  {formatPrice(vehicle.approxPricePkr)}
+                </p>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <span
-                    className={`mt-2 inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold ${verificationStatusClasses[vehicle.verificationStatus]}`}
+                    className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold ${verificationStatusClasses[vehicle.verificationStatus]}`}
                   >
                     {verificationStatusLabels[vehicle.verificationStatus]}
                   </span>
                   <RatingSummary
                     averageRating={vehicle.averageRating}
-                    className="mt-3"
                     ratingCount={vehicle.ratingCount}
                   />
                 </div>
-                <p className="text-sm font-semibold text-slate-800">
-                  {formatPrice(vehicle.approxPricePkr)}
-                </p>
+                <button
+                  className="inline-flex w-fit rounded-md border border-brand-200 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:border-brand-500 hover:bg-brand-50 hover:text-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                  type="button"
+                  onClick={scrollToReviewForm}
+                >
+                  Write a Review
+                </button>
               </div>
 
               <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -445,57 +501,11 @@ export default function VehicleDetail() {
               ) : null}
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-950">Approved community reviews</h2>
-                <p className="text-sm leading-6 text-slate-600">
-                  Public reviews are community-submitted and moderated before display. Ratings are
-                  not official, and EVReady does not verify every claim.
-                </p>
-              </div>
-
-              {approvedReviewPage.isLoading ? (
-                <StateMessage>Loading approved reviews...</StateMessage>
-              ) : approvedReviewPage.errorMessage ? (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
-                  <p className="font-semibold">Approved reviews could not be loaded.</p>
-                  <p className="mt-1">{approvedReviewPage.errorMessage}</p>
-                </div>
-              ) : approvedReviewPage.reviews.length > 0 ? (
-                <div className="mt-5 space-y-4">
-                  {approvedReviewPage.reviews.map((review, index) => (
-                    <ApprovedReviewCard key={review.id ?? index} review={review} />
-                  ))}
-                  {shouldShowReviewPagination(approvedReviewPage) ? (
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <button
-                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={approvedReviewPage.isLoading || approvedReviewPage.page <= 0}
-                        onClick={() => void loadApprovedReviews(approvedReviewPage.page - 1)}
-                        type="button"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-slate-500">Page {approvedReviewPage.page + 1}</span>
-                      <button
-                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={!hasNextReviewPage(approvedReviewPage)}
-                        onClick={() => void loadApprovedReviews(approvedReviewPage.page + 1)}
-                        type="button"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  No approved reviews yet.
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <section
+              id="write-review"
+              ref={reviewFormRef}
+              className="scroll-mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+            >
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-slate-950">Share your vehicle experience</h2>
                 <p className="text-sm leading-6 text-slate-600">
@@ -607,6 +617,62 @@ export default function VehicleDetail() {
                 </button>
               </form>
             </section>
+
+            <section
+              id="reviews"
+              ref={approvedReviewsRef}
+              className="scroll-mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+            >
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-950">Approved community reviews</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Public reviews are community-submitted and moderated before display. Ratings are
+                  not official, and EVReady does not verify every claim.
+                </p>
+              </div>
+
+              {approvedReviewPage.isLoading ? (
+                <StateMessage>Loading approved reviews...</StateMessage>
+              ) : approvedReviewPage.errorMessage ? (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                  <p className="font-semibold">Approved reviews could not be loaded.</p>
+                  <p className="mt-1">{approvedReviewPage.errorMessage}</p>
+                </div>
+              ) : approvedReviewPage.reviews.length > 0 ? (
+                <div className="mt-5 space-y-4">
+                  <div className="flex snap-x gap-4 overflow-x-auto pb-2">
+                    {approvedReviewPage.reviews.map((review, index) => (
+                      <ApprovedReviewCard key={review.id ?? index} review={review} />
+                    ))}
+                  </div>
+                  {shouldShowReviewPagination(approvedReviewPage) ? (
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={approvedReviewPage.isLoading || approvedReviewPage.page <= 0}
+                        onClick={() => void loadApprovedReviews(approvedReviewPage.page - 1)}
+                        type="button"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-slate-500">Page {approvedReviewPage.page + 1}</span>
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={!hasNextReviewPage(approvedReviewPage)}
+                        onClick={() => void loadApprovedReviews(approvedReviewPage.page + 1)}
+                        type="button"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  No approved reviews yet.
+                </div>
+              )}
+            </section>
           </>
         ) : (
           <StateMessage>Vehicle details are not available right now.</StateMessage>
@@ -646,7 +712,7 @@ type RatingSummaryProps = {
 
 function RatingSummary({ averageRating, className = '', ratingCount }: RatingSummaryProps) {
   if (!averageRating || ratingCount <= 0) {
-    return <p className={`text-sm text-slate-500 ${className}`}>No approved ratings yet</p>;
+    return null;
   }
 
   return (
@@ -665,7 +731,7 @@ function ApprovedReviewCard({ review }: { review: PublicVehicleReview }) {
   const rating = parseRating(review.rating);
 
   return (
-    <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+    <article className="min-w-[min(20rem,85vw)] snap-start rounded-md border border-slate-200 bg-slate-50 p-4 sm:min-w-[22rem]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-semibold text-slate-950">{formatText(review.displayName, 'EVReady user')}</p>

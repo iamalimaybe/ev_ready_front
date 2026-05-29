@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const navGroups = [
   {
@@ -19,10 +19,10 @@ const navGroups = [
     ],
   },
   {
-    label: 'Vehicles & Trips',
+    label: 'EV & Range Anxiety',
     links: [
-      { label: 'Route Feasibility', to: '/route-feasibility' },
-      { label: 'Vehicle Catalog', to: '/vehicles' },
+      { label: 'Range Anxiety Check', to: '/route-feasibility' },
+      { label: 'EV Catalogue', to: '/vehicles' },
     ],
   },
 ];
@@ -33,6 +33,7 @@ type LayoutProps = {
 
 export default function Layout({ children }: LayoutProps) {
   const [activeMenu, setActiveMenu] = useState<string | undefined>();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -57,6 +58,11 @@ export default function Layout({ children }: LayoutProps) {
     };
   }, []);
 
+  function closeNavigation() {
+    setActiveMenu(undefined);
+    setIsMobileMenuOpen(false);
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
@@ -64,18 +70,35 @@ export default function Layout({ children }: LayoutProps) {
           ref={navRef}
           className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8"
         >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <NavLink to="/" className="text-xl font-bold text-brand-700">
-              EVReady Pakistan
-            </NavLink>
-            <p className="text-sm text-slate-600">
-              EV buying and usage confidence for Pakistan
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:gap-4">
+              <NavLink to="/" className="text-xl font-bold text-brand-700" onClick={closeNavigation}>
+                EVReady Pakistan
+              </NavLink>
+              <p className="text-sm text-slate-600">
+                EV buying and usage confidence for Pakistan
+              </p>
+            </div>
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700 md:hidden"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="site-navigation"
+              onClick={() => {
+                setIsMobileMenuOpen((isOpen) => !isOpen);
+                setActiveMenu(undefined);
+              }}
+            >
+              Menu
+            </button>
           </div>
-          <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-start">
+          <div
+            id="site-navigation"
+            className={`${isMobileMenuOpen ? 'flex' : 'hidden'} flex-col gap-2 md:flex md:flex-row md:flex-wrap md:items-start`}
+          >
             <NavLink
               to="/"
-              onClick={() => setActiveMenu(undefined)}
+              onClick={closeNavigation}
               className={({ isActive }) =>
                 [
                   'rounded-md px-3 py-2 text-sm font-medium transition',
@@ -107,7 +130,7 @@ export default function Layout({ children }: LayoutProps) {
                       <NavLink
                         key={item.to}
                         to={item.to}
-                        onClick={() => setActiveMenu(undefined)}
+                        onClick={closeNavigation}
                         className={({ isActive }) =>
                           [
                             'rounded-md px-3 py-2 text-sm font-medium transition',
@@ -127,7 +150,7 @@ export default function Layout({ children }: LayoutProps) {
 
             <NavLink
               to="/guides"
-              onClick={() => setActiveMenu(undefined)}
+              onClick={closeNavigation}
               className={({ isActive }) =>
                 [
                   'rounded-md px-3 py-2 text-sm font-medium transition',
@@ -142,7 +165,7 @@ export default function Layout({ children }: LayoutProps) {
 
             <NavLink
               to="/get-help"
-              onClick={() => setActiveMenu(undefined)}
+              onClick={closeNavigation}
               className={({ isActive }) =>
                 [
                   'rounded-md px-3 py-2 text-sm font-medium transition',
@@ -157,7 +180,7 @@ export default function Layout({ children }: LayoutProps) {
 
             <NavLink
               to="/contact"
-              onClick={() => setActiveMenu(undefined)}
+              onClick={closeNavigation}
               className={({ isActive }) =>
                 [
                   'rounded-md px-3 py-2 text-sm font-medium transition',
@@ -173,11 +196,44 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+      <GoToTopButton />
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-4 text-sm text-slate-600 sm:px-6 lg:px-8">
           © 2026 EVReady Pakistan. All rights reserved.
         </div>
       </footer>
     </div>
+  );
+}
+
+function GoToTopButton() {
+  const [isVisible, setIsVisible] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    function handleScroll() {
+      setIsVisible(window.scrollY > 360);
+    }
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  if (!isVisible || location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      className="fixed bottom-20 right-4 z-20 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-md transition hover:border-brand-500 hover:text-brand-700 sm:bottom-6"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+    >
+      Top
+    </button>
   );
 }
