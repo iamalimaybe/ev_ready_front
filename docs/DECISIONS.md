@@ -336,3 +336,24 @@ Implications:
 - Public navigation should not prominently expose admin access.
 - Broader admin capabilities remain deferred until access control, auditability, moderation, and
   operational ownership are planned.
+
+## 2026-05-29 - Dedicated Public Detail Pages
+
+Decision:
+
+- Use dedicated routes for public vehicle and charger details instead of future modal-based
+  review/comment display.
+
+Reason:
+
+- Detail pages give users stable links for backend-backed catalog and directory records while
+  keeping ratings, reviews, comments, and charger feedback deferred until approved backend APIs and
+  moderation support exist.
+
+Implications:
+
+- Vehicle cards link to `/vehicles/:id`.
+- Charger cards link to `/chargers/:id`.
+- Detail pages must keep source-confidence and verify-before-purchase/travel wording visible.
+- Do not show fake ratings, fake stars, fake comments, or modal review UI before the backend review
+  system is approved and implemented.

@@ -85,8 +85,30 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Admin leads and contact submissions can now update status from the protected Admin UI.
 - Admin lead status dropdown options now load from the protected backend status-options endpoint.
 - Admin contact status dropdown options now load from the protected backend status-options endpoint.
+- Dedicated Vehicle Detail and Charger Detail pages now load backend detail APIs from
+  `/api/v1/vehicles/{id}` and `/api/v1/chargers/{id}`, with listing card links and conservative
+  source-confidence warnings.
 
 ## Completed
+
+### 2026-05-29 - Vehicle and Charger Detail Pages
+
+Added dedicated public detail routes for backend-backed vehicle and charger records. Vehicle cards
+now link to `/vehicles/:id`, charger cards link to `/chargers/:id`, and the new detail pages load
+the existing backend detail APIs with loading, error, and not-found states. Detail pages show useful
+record fields with source-confidence labels and verify-before-purchase/travel wording, without
+ratings, reviews, stars, comments, authentication, or modal review UI.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/main.tsx`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
 
 ### 2026-05-28 - Admin Status Option Type Fix
 

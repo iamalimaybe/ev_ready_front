@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import App from './App';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLogin from './pages/admin/AdminLogin';
+import ChargerDetail from './pages/ChargerDetail';
 import ChargerDirectory from './pages/ChargerDirectory';
 import ContactUs from './pages/ContactUs';
 import CostComparison from './pages/CostComparison';
@@ -19,6 +20,7 @@ import RouteFeasibility from './pages/RouteFeasibility';
 import SolarEvChargingEstimator from './pages/SolarEvChargingEstimator';
 import SuitabilityCalculator from './pages/SuitabilityCalculator';
 import VehicleCatalog from './pages/VehicleCatalog';
+import VehicleDetail from './pages/VehicleDetail';
 import './styles.css';
 
 const loadCloudflareWebAnalytics = () => {
@@ -48,7 +50,9 @@ const router = createBrowserRouter([
       { path: 'cost-comparison', element: <CostComparison /> },
       { path: 'route-feasibility', element: <RouteFeasibility /> },
       { path: 'vehicles', element: <VehicleCatalog /> },
+      { path: 'vehicles/:id', element: <VehicleDetail /> },
       { path: 'chargers', element: <ChargerDirectory /> },
+      { path: 'chargers/:id', element: <ChargerDetail /> },
       { path: 'contact', element: <ContactUs /> },
       { path: 'guides', element: <Guides /> },
       { path: 'guides/ev-bike-vs-petrol', element: <EvBikeVsPetrolGuide /> },

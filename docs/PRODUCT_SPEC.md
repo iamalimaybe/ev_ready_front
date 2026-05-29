@@ -117,7 +117,7 @@ Scope:
 
 ### Vehicle Ratings and Reviews System
 
-Ratings and reviews are a future post-first-release feature. Users may later rate vehicles from 1 to 5 stars and add text reviews. Listing cards should later show rating count and average rating with max 1 decimal place, and a vehicle detail view or modal should show individual reviews.
+Ratings and reviews are a future post-first-release feature. Users may later rate vehicles from 1 to 5 stars and add text reviews. Listing cards should later show rating count and average rating with max 1 decimal place, and dedicated vehicle detail pages should show individual reviews only after backend approved-review APIs, persistence, moderation, and spam handling exist.
 
 This feature requires backend persistence, moderation/spam handling, and a backend-backed data flow. It should not be built as static fake data for the first release.
 
@@ -142,6 +142,8 @@ The catalog should include both EV bikes and EV cars from backend data as it bec
 
 Vehicle API responses include `verificationStatus`, and catalog cards should show small source-confidence badges while still asking users to verify specs and price before purchase.
 
+Dedicated vehicle detail pages at `/vehicles/:id` are the chosen direction for deeper vehicle information. Modal-based review/comment display is deferred and should not be added before backend approved-review APIs exist.
+
 ### Charger Directory
 
 Shows backend-backed public charger information in production. This supports charging confidence
@@ -150,6 +152,8 @@ but must not become the product's main identity.
 First release must not claim live charger status unless the backend has a reliable live source and update process.
 
 Charger API responses are expected to include `verificationStatus`, separate from operational `status`, and directory cards should show small source-confidence badges while still asking users to verify charger details before travel.
+
+Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability, and modal-based feedback/review display remains deferred.
 
 ### Guides and Content
 
