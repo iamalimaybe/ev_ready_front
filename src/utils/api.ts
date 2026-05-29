@@ -31,6 +31,27 @@ export class ApiError extends Error {
 
 type JsonBody = Record<string, unknown> | unknown[];
 
+export type VehicleReviewExperienceTypeOption = {
+  value: string;
+  label: string;
+  description?: string | null;
+  displayOrder?: number | null;
+};
+
+export type VehicleReviewSubmission = {
+  rating: number;
+  experienceType: string;
+  reviewText?: string;
+  displayName?: string;
+  city?: string;
+};
+
+export type VehicleReviewSubmissionResponse = {
+  id?: string | number;
+  status?: string;
+  message?: string;
+};
+
 interface RequestOptions {
   body?: JsonBody;
 }
@@ -106,4 +127,16 @@ const request = async <T>(method: "GET" | "POST", path: string, options: Request
 export const apiClient = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body: JsonBody) => request<T>("POST", path, { body }),
+};
+
+export const vehicleReviewApi = {
+  getExperienceTypes: () =>
+    apiClient.get<VehicleReviewExperienceTypeOption[]>(
+      "/api/v1/vehicles/reviews/experience-types",
+    ),
+  submitReview: (vehicleId: string, review: VehicleReviewSubmission) =>
+    apiClient.post<VehicleReviewSubmissionResponse>(
+      `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/reviews`,
+      review,
+    ),
 };
