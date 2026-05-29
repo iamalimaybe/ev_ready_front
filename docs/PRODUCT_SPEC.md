@@ -155,7 +155,8 @@ Vehicle API responses include `verificationStatus`, and catalog cards should sho
 Dedicated vehicle detail pages at `/vehicles/:id` are the chosen direction for deeper vehicle information. Modal-based review/comment display is deferred and should not be added before backend approved-review APIs exist.
 
 Vehicle cards and detail pages may show approved-only rating aggregates from the backend. Unrated
-vehicles should use conservative wording such as no approved ratings yet instead of fake ratings.
+vehicles should use conservative wording such as be the first to review instead of fake ratings.
+Catalog browsing uses a simple load-more pattern so filters remain lightweight on mobile.
 
 ### Charger Directory
 
@@ -167,6 +168,9 @@ First release must not claim live charger status unless the backend has a reliab
 Charger API responses are expected to include `verificationStatus`, separate from operational `status`, and directory cards should show small source-confidence badges while still asking users to verify charger details before travel.
 
 Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability, and modal-based feedback/review display remains deferred.
+
+Directory browsing uses a simple load-more pattern. Charger reviews, feedback, ratings, and live
+availability remain deferred.
 
 ### Guides and Content
 

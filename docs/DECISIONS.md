@@ -381,3 +381,23 @@ Implications:
 - Newly submitted pending reviews must not appear publicly until approved.
 - Ratings and reviews must be framed as community-submitted and moderated, not official EVReady
   verification.
+
+## 2026-05-29 - Public Listings Use Load More
+
+Decision:
+
+- Public vehicle and charger listing pages use mobile-friendly load-more browsing instead of
+  classic page controls when the frontend has the filtered list available.
+
+Reason:
+
+- The catalog and directory are browsing aids, and showing a small first batch with explicit load
+  more keeps mobile pages shorter while preserving the user's filter context when moving into
+  detail pages and back.
+
+Implications:
+
+- Vehicle Catalog and Charger Directory should show six records initially and reveal more in small
+  batches.
+- Listing filter state should be represented in URL query parameters rather than browser storage.
+- Detail pages remain the preferred place for deeper information and review access.

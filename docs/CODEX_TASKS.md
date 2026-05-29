@@ -94,8 +94,101 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   workflows.
 - Vehicle Catalog and Vehicle Detail now show approved-only vehicle rating aggregates, and Vehicle
   Detail shows paginated approved public reviews without exposing pending or rejected review content.
+- Public navigation now uses mobile-collapsed menus, public listing pages use URL-preserved
+  load-more browsing, and Vehicle Detail puts review submission access before approved review
+  browsing.
+- Vehicle and charger detail back navigation now renders as title-row button actions, and vehicle
+  rating aggregate normalization supports nested backend aggregate payloads.
+- Vehicle rating and review actions now use stable detail-page anchors so catalog rating CTAs can
+  open approved reviews or the review form directly.
+- Vehicle rating/review controls now align with source-confidence badge rows on catalog cards and
+  vehicle details, with no passive first-review text on Vehicle Detail.
+- Public Home and listing UI now use `EV Catalogue` wording instead of `Vehicle Catalog`.
 
 ## Completed
+
+### 2026-05-29 - EV Catalogue Public Wording Cleanup
+
+Renamed remaining public Home and catalogue-page user-facing `Vehicle Catalog` wording to
+`EV Catalogue` without changing routes, backend API paths, filters, or listing behavior.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/Home.tsx`
+- `src/pages/VehicleCatalog.tsx`
+
+### 2026-05-29 - Vehicle Rating Row Alignment Cleanup
+
+Aligned Vehicle Detail source-confidence, optional rating summary, and `Write a Review` action into
+one responsive row below the title. Detail pages with no approved ratings no longer show passive
+`Be the first to review` text because the review button is already present. Vehicle Catalog cards
+now align the source-confidence badge and clickable rating/first-review CTA on the same responsive
+row while preserving existing detail links, anchors, filters, and load-more behavior.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
+
+### 2026-05-29 - Vehicle Rating and Review Interaction Polish
+
+Moved the Vehicle Detail `Write a Review` action into the main detail card header area so it aligns
+with the vehicle summary on desktop and stacks cleanly on mobile. Added stable `#write-review` and
+`#reviews` anchors with hash scrolling after detail content renders. Vehicle Catalog cards now show
+the rating summary or `Be the first to review` as clickable header actions on the right side when
+space allows, linking to the approved reviews section or review form respectively while preserving
+the existing View details button and listing query state.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
+
+### 2026-05-29 - Detail Back Button and Vehicle Rating Aggregate Bugfix
+
+Updated Vehicle Detail and Charger Detail back navigation to render as button-style actions in the
+page title area while preserving query-string filter return behavior. Vehicle Detail now labels the
+return action as `Back to EV Catalogue`. Vehicle rating normalization now reads approved aggregate
+values from both flat backend fields and common nested aggregate payloads, so Vehicle Catalog cards
+and the Vehicle Detail header can show approved average rating, stars, and count when backend list
+or detail responses provide them. No fake ratings, charger ratings, public auth, or backend path
+changes were added.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/components/PageShell.tsx`
+- `src/data/vehicles.ts`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/VehicleDetail.tsx`
+
+### 2026-05-29 - Public Listing and Detail UX Improvements
+
+Updated public navigation labels to `EV & Range Anxiety`, `EV Catalogue`, and `Range Anxiety Check`,
+and collapsed the mobile navigation behind a menu button. Added a public go-to-top button outside
+admin routes. Vehicle Catalog and Charger Directory now show six cards by default, preserve filters
+and visible counts in URL query parameters, carry that query state through detail links, provide
+clear filter reset buttons, and use load-more browsing instead of classic pagination. Vehicle
+rating aggregate normalization now accepts common
+approved-review aggregate field names, and unrated vehicles use a review CTA instead of implying
+missing approved ratings. Vehicle Detail now uses five approved reviews per page, exposes a
+`Write a Review` jump button, places the submission form before approved reviews, and renders
+approved reviews as horizontally scrollable cards.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/components/Layout.tsx`
+- `src/data/vehicles.ts`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
 
 ### 2026-05-29 - Approved Vehicle Ratings and Reviews Display
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import { ApiError, apiClient } from '../utils/api';
 
@@ -104,6 +104,7 @@ function normalizeChargerDetail(charger: BackendChargerDetail): ChargerDetailRec
 
 export default function ChargerDetail() {
   const { id } = useParams();
+  const location = useLocation();
   const [charger, setCharger] = useState<ChargerDetailRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -163,17 +164,22 @@ export default function ChargerDetail() {
   }, [id]);
 
   const mapLink = charger ? buildMapsLink(charger.latitude, charger.longitude) : null;
+  const backLink = (
+    <Link
+      className="inline-flex w-full justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
+      to={`/chargers${location.search}`}
+    >
+      Back to Charger Directory
+    </Link>
+  );
 
   return (
     <PageShell
+      actions={backLink}
       eyebrow="Charger details"
       title={charger ? formatText(charger.name, 'Charger Details') : 'Charger Details'}
     >
       <div className="space-y-6">
-        <Link className="text-sm font-semibold text-brand-700 hover:text-brand-800" to="/chargers">
-          Back to Charger Directory
-        </Link>
-
         {isLoading ? (
           <StateMessage>Loading charger details...</StateMessage>
         ) : notFoundMessage ? (
