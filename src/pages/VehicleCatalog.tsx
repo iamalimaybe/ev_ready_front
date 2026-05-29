@@ -583,6 +583,11 @@ function VehicleCard({ vehicle }: VehicleCardProps) {
           >
             {verificationStatusLabels[vehicle.verificationStatus]}
           </span>
+          <RatingSummary
+            averageRating={vehicle.averageRating}
+            className="mt-3"
+            ratingCount={vehicle.ratingCount}
+          />
         </div>
         <p className="text-sm font-semibold text-slate-800">
           {currencyFormatter.format(vehicle.approxPricePkr)}
@@ -633,4 +638,37 @@ function SpecRow({ label, value }: SpecRowProps) {
 
 function formatBoolean(value: boolean): string {
   return value ? 'Yes' : 'No';
+}
+
+type RatingSummaryProps = {
+  averageRating: number | null;
+  ratingCount: number;
+  className?: string;
+};
+
+function RatingSummary({ averageRating, className = '', ratingCount }: RatingSummaryProps) {
+  if (!averageRating || ratingCount <= 0) {
+    return <p className={`text-sm text-slate-500 ${className}`}>No approved ratings yet</p>;
+  }
+
+  return (
+    <div className={`flex flex-wrap items-center gap-2 text-sm ${className}`}>
+      <span className="font-semibold text-amber-600" aria-hidden="true">
+        {renderStars(averageRating)}
+      </span>
+      <span className="font-semibold text-slate-800">
+        {formatRating(averageRating)}/5 · {ratingCount} {ratingCount === 1 ? 'review' : 'reviews'}
+      </span>
+    </div>
+  );
+}
+
+function renderStars(rating: number) {
+  const roundedRating = Math.round(rating);
+
+  return Array.from({ length: 5 }, (_, index) => (index < roundedRating ? '★' : '☆')).join('');
+}
+
+function formatRating(rating: number) {
+  return rating.toFixed(1);
 }

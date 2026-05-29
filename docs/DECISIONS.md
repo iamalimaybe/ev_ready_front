@@ -202,6 +202,10 @@ Implications:
 - Plan backend and moderation needs before implementation.
 - Later listing cards can show rating count and average rating with max 1 decimal place once real persisted reviews exist.
 
+Status:
+
+- Partially superseded by the 2026-05-29 approved-only vehicle review display decision.
+
 ## 2026-05-26 - Charger Data Strategy Before More Charger UI
 
 Decision:
@@ -357,3 +361,23 @@ Implications:
 - Detail pages must keep source-confidence and verify-before-purchase/travel wording visible.
 - Do not show fake ratings, fake stars, fake comments, or modal review UI before the backend review
   system is approved and implemented.
+
+## 2026-05-29 - Approved-Only Vehicle Review Display
+
+Decision:
+
+- Show vehicle rating aggregates and public vehicle reviews only from backend approved-review data.
+
+Reason:
+
+- Community reviews can help first-time EV buyers, but pending, rejected, spam, or fake review data
+  would damage trust and could imply claims that EVReady has not verified.
+
+Implications:
+
+- Vehicle cards and detail pages may show approved aggregate rating/count fields from backend
+  vehicle responses.
+- Vehicle detail pages may show approved public reviews from the backend public review endpoint.
+- Newly submitted pending reviews must not appear publicly until approved.
+- Ratings and reviews must be framed as community-submitted and moderated, not official EVReady
+  verification.

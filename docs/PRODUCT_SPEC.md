@@ -123,10 +123,13 @@ reviews are stored as pending and are not published immediately.
 The protected admin dashboard can moderate submitted vehicle reviews for later public display.
 Approval does not mean EVReady has verified the user's claim.
 
-Public review display remains deferred until approved-review APIs and spam handling exist. Listing
-cards should later show rating count and average rating with max 1 decimal place only after real
-approved aggregate fields are available. Static fake reviews, fake ratings, and fake comments must
-not be shown.
+Approved-only vehicle rating aggregates are shown on vehicle cards and vehicle detail pages when
+approved ratings exist. Vehicle detail pages also show approved public reviews returned by the
+backend. Pending, rejected, and spam reviews must not be shown publicly.
+
+Ratings and reviews are community-submitted and moderated before display. They are not official
+ratings, and they do not mean EVReady has verified every claim. Static fake reviews, fake ratings,
+and fake comments must not be shown.
 
 ## Supporting Tools
 
@@ -150,6 +153,9 @@ The catalog should include both EV bikes and EV cars from backend data as it bec
 Vehicle API responses include `verificationStatus`, and catalog cards should show small source-confidence badges while still asking users to verify specs and price before purchase.
 
 Dedicated vehicle detail pages at `/vehicles/:id` are the chosen direction for deeper vehicle information. Modal-based review/comment display is deferred and should not be added before backend approved-review APIs exist.
+
+Vehicle cards and detail pages may show approved-only rating aggregates from the backend. Unrated
+vehicles should use conservative wording such as no approved ratings yet instead of fake ratings.
 
 ### Charger Directory
 

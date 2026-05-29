@@ -89,12 +89,33 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   `/api/v1/vehicles/{id}` and `/api/v1/chargers/{id}`, with listing card links and conservative
   source-confidence warnings.
 - Vehicle Detail now includes a public review submission form backed by pending-review backend
-  APIs, while public review display, averages, stars, comments, auth, and moderation UI remain
-  deferred.
+  APIs, while public user auth remains deferred.
 - Admin Dashboard now includes protected vehicle review moderation for pending/approved review
-  workflows, while public review display, averages, stars, and comments remain deferred.
+  workflows.
+- Vehicle Catalog and Vehicle Detail now show approved-only vehicle rating aggregates, and Vehicle
+  Detail shows paginated approved public reviews without exposing pending or rejected review content.
 
 ## Completed
+
+### 2026-05-29 - Approved Vehicle Ratings and Reviews Display
+
+Added approved-only vehicle rating aggregate display to Vehicle Catalog cards and Vehicle Detail,
+including simple star rendering and no-approved-ratings fallback text. Vehicle Detail now loads
+approved public reviews from `GET /api/v1/vehicles/{vehicleId}/reviews?page=0&size=10`, shows
+separate loading/error/empty states, renders approved review cards with reviewer fallback text, and
+adds simple Previous/Next pagination from the backend page response. Pending submissions remain
+moderated and do not appear in the public review list after submit. No public auth, charger reviews,
+fake ratings, or unapproved review display were added.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/DECISIONS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/data/vehicles.ts`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
+- `src/utils/api.ts`
 
 ### 2026-05-29 - Admin Vehicle Review Moderation UI
 
