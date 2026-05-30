@@ -1,7 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
-import { ApiError, apiClient } from '../utils/api';
+import {
+  ApiError,
+  apiClient,
+  chargerFeedbackApi,
+  type BackendFieldErrors,
+  type ChargerFeedbackSubmission,
+  type ChargerFeedbackTypeOption,
+} from '../utils/api';
 
 type ChargingType = 'AC' | 'DC' | 'AC_DC';
 type ChargerStatus = 'OPERATIONAL' | 'LIMITED' | 'COMING_SOON' | 'UNKNOWN';
@@ -43,6 +50,17 @@ type ChargerDetailRecord = Omit<BackendChargerDetail, 'latitude' | 'longitude' |
   verificationStatus: ChargerVerificationStatus;
 };
 
+type ChargerFeedbackFormState = {
+  rating: string;
+  feedbackType: string;
+  message: string;
+  displayName: string;
+  city: string;
+  reportedByContact: string;
+};
+
+type ChargerFeedbackFormErrors = Partial<Record<keyof ChargerFeedbackFormState, string>>;
+
 const verificationStatusLabels: Record<ChargerVerificationStatus, string> = {
   OFFICIAL: 'Operator source-backed',
   DEALER_CONFIRMED: 'Provider source-backed',
@@ -62,6 +80,18 @@ const dateFormatter = new Intl.DateTimeFormat('en-GB', {
   month: 'short',
   year: 'numeric',
 });
+
+const initialFeedbackForm: ChargerFeedbackFormState = {
+  rating: '',
+  feedbackType: '',
+  message: '',
+  displayName: '',
+  city: '',
+  reportedByContact: '',
+};
+
+const inputClass =
+  'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -109,6 +139,13 @@ export default function ChargerDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
+  const [feedbackTypes, setFeedbackTypes] = useState<ChargerFeedbackTypeOption[]>([]);
+  const [feedbackTypeErrorMessage, setFeedbackTypeErrorMessage] = useState<string | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState<ChargerFeedbackFormState>(initialFeedbackForm);
+  const [feedbackFormErrors, setFeedbackFormErrors] = useState<ChargerFeedbackFormErrors>({});
+  const [feedbackSuccessMessage, setFeedbackSuccessMessage] = useState<string | null>(null);
+  const [feedbackErrorMessage, setFeedbackErrorMessage] = useState<string | null>(null);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -162,6 +199,123 @@ export default function ChargerDetail() {
       isCurrentRequest = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    let isCurrentRequest = true;
+
+    setFeedbackTypeErrorMessage(null);
+
+    chargerFeedbackApi
+      .getFeedbackTypes()
+      .then((feedbackTypeResponse) => {
+        if (!isCurrentRequest) {
+          return;
+        }
+
+        if (!Array.isArray(feedbackTypeResponse)) {
+          throw new Error('Charger feedback type response was not a list.');
+        }
+
+        setFeedbackTypes(
+          feedbackTypeResponse
+            .map((feedbackType) => normalizeFeedbackTypeOption(feedbackType))
+            .filter((feedbackType): feedbackType is ChargerFeedbackTypeOption =>
+              Boolean(feedbackType),
+            ),
+        );
+      })
+      .catch((error: unknown) => {
+        if (!isCurrentRequest) {
+          return;
+        }
+
+        setFeedbackTypes([]);
+        setFeedbackTypeErrorMessage(getErrorMessage(error));
+      });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, []);
+
+  function updateFeedbackField<Key extends keyof ChargerFeedbackFormState>(
+    key: Key,
+    value: ChargerFeedbackFormState[Key],
+  ) {
+    setFeedbackForm((currentForm) => ({
+      ...currentForm,
+      [key]: value,
+    }));
+
+    setFeedbackFormErrors((currentErrors) => ({
+      ...currentErrors,
+      [key]: undefined,
+    }));
+    setFeedbackSuccessMessage(null);
+    setFeedbackErrorMessage(null);
+  }
+
+  function handleFeedbackSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!id) {
+      setFeedbackErrorMessage('Charger ID was not available for feedback submission.');
+      return;
+    }
+
+    const nextErrors: ChargerFeedbackFormErrors = {};
+    const rating = feedbackForm.rating ? Number(feedbackForm.rating) : undefined;
+
+    if (
+      feedbackForm.rating &&
+      (rating === undefined || !Number.isInteger(rating) || rating < 1 || rating > 5)
+    ) {
+      nextErrors.rating = 'Choose a rating from 1 to 5, or leave it blank.';
+    }
+
+    if (!feedbackForm.feedbackType) {
+      nextErrors.feedbackType = 'Choose the kind of charger feedback you are sharing.';
+    }
+
+    setFeedbackFormErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    setFeedbackErrorMessage(null);
+    setFeedbackSuccessMessage(null);
+
+    const feedbackSubmission: ChargerFeedbackSubmission = {
+      feedbackType: feedbackForm.feedbackType,
+      ...(rating !== undefined ? { rating } : {}),
+      ...optionalPayloadField('message', feedbackForm.message),
+      ...optionalPayloadField('displayName', feedbackForm.displayName),
+      ...optionalPayloadField('city', feedbackForm.city),
+      ...optionalPayloadField('reportedByContact', feedbackForm.reportedByContact),
+    };
+
+    chargerFeedbackApi
+      .submitFeedback(id, feedbackSubmission)
+      .then((response) => {
+        setFeedbackSuccessMessage(
+          isMeaningfulString(response.message)
+            ? response.message.trim()
+            : 'Feedback submitted for review. It is not public and will not change charger status.',
+        );
+        setFeedbackForm(initialFeedbackForm);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError) {
+          setFeedbackFormErrors(getFieldErrorMap(error.response.fieldErrors));
+        }
+        setFeedbackErrorMessage(getErrorMessage(error));
+      })
+      .finally(() => {
+        setIsSubmittingFeedback(false);
+      });
+  }
 
   const mapLink = charger ? buildMapsLink(charger.latitude, charger.longitude) : null;
   const backLink = (
@@ -258,6 +412,128 @@ export default function ChargerDetail() {
                 </div>
               ) : null}
             </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-950">Share charger feedback</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Feedback is submitted for EVReady review and is not shown publicly yet. It does
+                  not update this charger's reported status or confirm live availability, access,
+                  compatibility, occupancy, or pricing.
+                </p>
+              </div>
+
+              {feedbackTypeErrorMessage ? (
+                <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Charger feedback options could not be loaded right now. Please try again later.
+                </div>
+              ) : null}
+
+              <form className="mt-5 space-y-4" onSubmit={handleFeedbackSubmit}>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="text-sm font-medium text-slate-800">
+                    Rating <span className="font-normal text-slate-500">(optional)</span>
+                    <select
+                      className={inputClass}
+                      value={feedbackForm.rating}
+                      onChange={(event) => updateFeedbackField('rating', event.target.value)}
+                    >
+                      <option value="">No rating</option>
+                      <option value="1">1 - Very poor</option>
+                      <option value="2">2 - Poor</option>
+                      <option value="3">3 - Okay</option>
+                      <option value="4">4 - Good</option>
+                      <option value="5">5 - Excellent</option>
+                    </select>
+                    <FieldError message={feedbackFormErrors.rating} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800">
+                    Feedback type
+                    <select
+                      className={inputClass}
+                      value={feedbackForm.feedbackType}
+                      disabled={feedbackTypes.length === 0}
+                      onChange={(event) => updateFeedbackField('feedbackType', event.target.value)}
+                    >
+                      <option value="">Choose one</option>
+                      {feedbackTypes.map((feedbackType) => (
+                        <option key={feedbackType.value} value={feedbackType.value}>
+                          {feedbackType.label}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError message={feedbackFormErrors.feedbackType} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800">
+                    Display name <span className="font-normal text-slate-500">(optional)</span>
+                    <input
+                      className={inputClass}
+                      type="text"
+                      value={feedbackForm.displayName}
+                      onChange={(event) => updateFeedbackField('displayName', event.target.value)}
+                    />
+                    <FieldError message={feedbackFormErrors.displayName} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800">
+                    City <span className="font-normal text-slate-500">(optional)</span>
+                    <input
+                      className={inputClass}
+                      type="text"
+                      value={feedbackForm.city}
+                      onChange={(event) => updateFeedbackField('city', event.target.value)}
+                    />
+                    <FieldError message={feedbackFormErrors.city} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800 md:col-span-2">
+                    Contact for internal follow-up only{' '}
+                    <span className="font-normal text-slate-500">(optional)</span>
+                    <input
+                      className={inputClass}
+                      type="text"
+                      value={feedbackForm.reportedByContact}
+                      onChange={(event) =>
+                        updateFeedbackField('reportedByContact', event.target.value)
+                      }
+                    />
+                    <FieldError message={feedbackFormErrors.reportedByContact} />
+                  </label>
+                </div>
+
+                <label className="block text-sm font-medium text-slate-800">
+                  Message <span className="font-normal text-slate-500">(optional)</span>
+                  <textarea
+                    className={`${inputClass} min-h-28 resize-y`}
+                    value={feedbackForm.message}
+                    onChange={(event) => updateFeedbackField('message', event.target.value)}
+                  />
+                  <FieldError message={feedbackFormErrors.message} />
+                </label>
+
+                {feedbackSuccessMessage ? (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
+                    {feedbackSuccessMessage}
+                  </div>
+                ) : null}
+
+                {feedbackErrorMessage ? (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                    {feedbackErrorMessage}
+                  </div>
+                ) : null}
+
+                <button
+                  className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  type="submit"
+                  disabled={isSubmittingFeedback || feedbackTypes.length === 0}
+                >
+                  {isSubmittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </form>
+            </section>
           </>
         ) : (
           <StateMessage>Charger details are not available right now.</StateMessage>
@@ -287,6 +563,65 @@ function StateMessage({ children }: { children: string }) {
       {children}
     </div>
   );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) {
+    return null;
+  }
+
+  return <span className="mt-2 block text-xs font-normal text-red-700">{message}</span>;
+}
+
+function normalizeFeedbackTypeOption(
+  feedbackType: ChargerFeedbackTypeOption,
+): ChargerFeedbackTypeOption | null {
+  if (!isMeaningfulString(feedbackType.value) || !isMeaningfulString(feedbackType.label)) {
+    return null;
+  }
+
+  return {
+    ...feedbackType,
+    value: feedbackType.value.trim(),
+    label: feedbackType.label.trim(),
+  };
+}
+
+function getFieldErrorMap(fieldErrors: BackendFieldErrors | undefined): ChargerFeedbackFormErrors {
+  if (!fieldErrors) {
+    return {};
+  }
+
+  const nextErrors: ChargerFeedbackFormErrors = {};
+
+  if (Array.isArray(fieldErrors)) {
+    fieldErrors.forEach((fieldError) => {
+      addFieldError(nextErrors, fieldError.field, fieldError.message);
+    });
+    return nextErrors;
+  }
+
+  Object.entries(fieldErrors).forEach(([field, message]) => {
+    addFieldError(nextErrors, field, message);
+  });
+
+  return nextErrors;
+}
+
+function addFieldError(
+  errors: ChargerFeedbackFormErrors,
+  field: string,
+  message: string | undefined,
+) {
+  if (!isFeedbackField(field) || !isMeaningfulString(message)) {
+    return;
+  }
+
+  errors[field] = message;
+}
+
+function isFeedbackField(field: string): field is keyof ChargerFeedbackFormState {
+  return field in initialFeedbackForm;
 }
 
 function getChargerTypeName(charger: ChargerDetailRecord) {
@@ -319,6 +654,19 @@ function isMeaningfulString(value: unknown): value is string {
 
 function formatText(value: unknown, fallback: string) {
   return isMeaningfulString(value) ? value.trim() : fallback;
+}
+
+function trimOptionalValue(value: string) {
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+function optionalPayloadField<Key extends keyof ChargerFeedbackSubmission>(
+  key: Key,
+  value: string,
+) {
+  const trimmedValue = trimOptionalValue(value);
+  return trimmedValue ? { [key]: trimmedValue } : {};
 }
 
 function formatPower(powerKw: ChargerDetailRecord['powerKw']) {

@@ -73,6 +73,28 @@ export type PageResponse<T> = {
   last?: boolean;
 };
 
+export type ChargerFeedbackTypeOption = {
+  value: string;
+  label: string;
+  description?: string | null;
+  displayOrder?: number | null;
+};
+
+export type ChargerFeedbackSubmission = {
+  rating?: number;
+  feedbackType: string;
+  message?: string;
+  displayName?: string;
+  city?: string;
+  reportedByContact?: string;
+};
+
+export type ChargerFeedbackSubmissionResponse = {
+  id?: string | number;
+  feedbackStatus?: string;
+  message?: string;
+};
+
 interface RequestOptions {
   body?: JsonBody;
 }
@@ -163,5 +185,15 @@ export const vehicleReviewApi = {
   getApprovedReviews: (vehicleId: string, page = 0, size = 10) =>
     apiClient.get<PageResponse<PublicVehicleReview> | PublicVehicleReview[]>(
       `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/reviews?page=${page}&size=${size}`,
+    ),
+};
+
+export const chargerFeedbackApi = {
+  getFeedbackTypes: () =>
+    apiClient.get<ChargerFeedbackTypeOption[]>("/api/v1/chargers/feedback-types"),
+  submitFeedback: (chargerId: string, feedback: ChargerFeedbackSubmission) =>
+    apiClient.post<ChargerFeedbackSubmissionResponse>(
+      `/api/v1/chargers/${encodeURIComponent(chargerId)}/feedback`,
+      feedback,
     ),
 };

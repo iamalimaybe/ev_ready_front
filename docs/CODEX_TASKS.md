@@ -104,8 +104,28 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Vehicle rating/review controls now align with source-confidence badge rows on catalog cards and
   vehicle details, with no passive first-review text on Vehicle Detail.
 - Public Home and listing UI now use `EV Catalogue` wording instead of `Vehicle Catalog`.
+- Charger Detail now includes a public pending-feedback form backed by backend charger feedback
+  type options and submission APIs, without public feedback display or charger status updates.
 
 ## Completed
+
+### 2026-05-30 - Charger Detail Public Feedback Submission
+
+Added a focused public charger feedback form to the Charger Detail page only. The page now loads
+backend charger feedback type options from `GET /api/v1/chargers/feedback-types`, supports optional
+ratings, posts feedback to `POST /api/v1/chargers/{chargerId}/feedback`, shows backend validation
+errors where possible, and displays a pending-review success message without showing public
+feedback, rating aggregates, or changing charger status.
+
+Fixed the optional rating validation type narrowing so the frontend TypeScript build can verify
+that blank ratings are allowed while selected ratings are checked from 1 to 5.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/utils/api.ts`
 
 ### 2026-05-29 - EV Catalogue Public Wording Cleanup
 
