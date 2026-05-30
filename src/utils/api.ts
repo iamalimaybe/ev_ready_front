@@ -95,6 +95,16 @@ export type ChargerFeedbackSubmissionResponse = {
   message?: string;
 };
 
+export type PublicChargerFeedback = {
+  id?: string | number;
+  rating?: number | string | null;
+  feedbackType?: string | null;
+  message?: string | null;
+  displayName?: string | null;
+  city?: string | null;
+  createdAt?: string | null;
+};
+
 interface RequestOptions {
   body?: JsonBody;
 }
@@ -195,5 +205,9 @@ export const chargerFeedbackApi = {
     apiClient.post<ChargerFeedbackSubmissionResponse>(
       `/api/v1/chargers/${encodeURIComponent(chargerId)}/feedback`,
       feedback,
+    ),
+  getApprovedFeedback: (chargerId: string, page = 0, size = 10) =>
+    apiClient.get<PageResponse<PublicChargerFeedback> | PublicChargerFeedback[]>(
+      `/api/v1/chargers/${encodeURIComponent(chargerId)}/feedback?page=${page}&size=${size}`,
     ),
 };

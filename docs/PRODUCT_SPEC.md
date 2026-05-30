@@ -173,11 +173,13 @@ Charger API responses are expected to include `verificationStatus`, separate fro
 Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability, and modal-based feedback/review display remains deferred.
 
 Charger detail pages can accept public charger feedback submissions through the backend. Submitted
-feedback is stored as pending and is not shown publicly. Feedback submission must not update charger
-status in the UI or imply live availability, access, compatibility, occupancy, or pricing.
+feedback is stored as pending and is not shown publicly unless approved through moderation.
+Approved public feedback may be shown on charger detail pages, but it must remain separate from
+public charger status and must not imply live availability, access, compatibility, occupancy, or
+pricing.
 
-Directory browsing uses a simple load-more pattern. Public charger feedback display, charger
-ratings, and live availability remain deferred.
+Directory browsing uses a simple load-more pattern. Charger rating aggregates, charger-directory
+feedback summaries, and live availability remain deferred.
 
 ### Guides and Content
 
