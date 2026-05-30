@@ -115,8 +115,25 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   status.
 - Admin Dashboard now includes protected charger record management for listing, creating, and
   editing charger directory records through backend admin APIs.
+- Public EV Catalogue and Charger Directory now request backend paginated results and load the next
+  page automatically when users scroll near the end of each list.
 
 ## Completed
+
+### 2026-05-30 - Public Catalogue Backend Pagination
+
+Updated EV Catalogue and Charger Directory browsing to request six-record backend pages, reset and
+refetch page 0 when filters or sorting change, append next pages through IntersectionObserver
+sentinels, and remove the manual Load More buttons. Existing detail links, source-confidence
+wording, filter query state, empty/loading/error states, and charger verify-before-travel guidance
+are preserved.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
 
 ### 2026-05-30 - Admin Charger Management UI
 
