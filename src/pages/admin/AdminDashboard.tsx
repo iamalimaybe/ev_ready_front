@@ -154,6 +154,7 @@ type PageState<T> = {
 };
 
 type AdminSection = 'leads' | 'contacts' | 'vehicleReviews' | 'chargerFeedback' | 'chargers';
+type ChargerManagementView = 'list' | 'create' | 'edit';
 
 type ModerationDraft = {
   reviewStatus: string;
@@ -426,6 +427,9 @@ const hasNextPage = <T,>(pageState: PageState<T>) => {
   return pageState.items.length === PAGE_SIZE;
 };
 
+const hasNextPaginatedPage = <T,>(pageState: PageState<T>) =>
+  typeof pageState.totalPages === 'number' && pageState.page + 1 < pageState.totalPages;
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
@@ -479,6 +483,7 @@ const AdminDashboard = () => {
   const [chargerFormMode, setChargerFormMode] = useState<'create' | 'edit'>('create');
   const [chargerFormMessage, setChargerFormMessage] = useState<string | null>(null);
   const [chargerFormError, setChargerFormError] = useState<string | null>(null);
+  const [chargerManagementView, setChargerManagementView] = useState<ChargerManagementView>('list');
   const [isChargerDetailLoading, setIsChargerDetailLoading] = useState(false);
   const [isSavingCharger, setIsSavingCharger] = useState(false);
 
@@ -809,6 +814,15 @@ const AdminDashboard = () => {
     setChargerFormMode('create');
     setChargerFormMessage(null);
     setChargerFormError(null);
+    setChargerManagementView('create');
+  };
+
+  const returnToChargerList = () => {
+    setSelectedCharger(null);
+    setChargerForm(initialChargerForm);
+    setChargerFormErrors({});
+    setChargerFormError(null);
+    setChargerManagementView('list');
   };
 
   const handleSelectCharger = async (charger: AdminCharger) => {
@@ -818,6 +832,7 @@ const AdminDashboard = () => {
     setChargerFormErrors({});
     setChargerFormMessage(null);
     setChargerFormError(null);
+    setChargerManagementView('edit');
     setIsChargerDetailLoading(true);
 
     try {
@@ -856,8 +871,9 @@ const AdminDashboard = () => {
 
     try {
       const payload = chargerFormToPayload(chargerForm);
+      const savedMode = chargerFormMode;
       const savedCharger =
-        chargerFormMode === 'create'
+        savedMode === 'create'
           ? await adminApiClient.createCharger<AdminCharger>(payload)
           : await adminApiClient.updateCharger<AdminCharger>(selectedCharger!.id, payload);
 
@@ -871,11 +887,15 @@ const AdminDashboard = () => {
           items: exists
             ? current.items.map((charger) => (charger.id === savedCharger.id ? savedCharger : charger))
             : [savedCharger, ...current.items],
+          totalElements:
+            exists || typeof current.totalElements !== 'number' ? current.totalElements : current.totalElements + 1,
         };
       });
       setChargerFormMessage(
         `Charger ${savedCharger.id} saved. Public charger status remains reported data, not live availability.`,
       );
+      setChargerManagementView('list');
+      void loadChargers(savedMode === 'create' ? 0 : chargerPage.page);
     } catch (error) {
       if (error instanceof ApiError) {
         setChargerFormErrors(getChargerFieldErrors(error.response.fieldErrors));
@@ -1169,7 +1189,10 @@ const AdminDashboard = () => {
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
             activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
           }`}
-          onClick={() => setActiveSection('chargers')}
+          onClick={() => {
+            setActiveSection('chargers');
+            setChargerManagementView('list');
+          }}
           type="button"
         >
           Chargers
@@ -1572,87 +1595,117 @@ const AdminDashboard = () => {
         </section>
       ) : activeSection === 'chargers' ? (
         <section className="flex flex-col gap-4">
-          <AdminSectionHeader
-            count={chargerPage.totalElements}
-            title="Charger Management"
-            onRefresh={() => void loadChargers(chargerPage.page)}
-          />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-950">
+                {chargerManagementView === 'create'
+                  ? 'Add new charger'
+                  : chargerManagementView === 'edit'
+                    ? `Edit charger ${formatValue(selectedCharger?.id)}`
+                    : 'Charger Management'}
+              </h2>
+              {chargerManagementView === 'list' && typeof chargerPage.totalElements === 'number' ? (
+                <p className="text-sm text-slate-500">{chargerPage.totalElements} total records</p>
+              ) : null}
+            </div>
+            {chargerManagementView === 'list' ? (
+              <div className="flex items-center gap-2">
+                <button
+                  aria-label="Add new charger"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-xl font-semibold leading-none text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  disabled={Boolean(chargerFormOptionsError) || isChargerFormOptionsLoading}
+                  onClick={startCreateCharger}
+                  title="Add new charger"
+                  type="button"
+                >
+                  +
+                </button>
+                <button
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  onClick={() => void loadChargers(chargerPage.page)}
+                  type="button"
+                >
+                  Refresh
+                </button>
+              </div>
+            ) : null}
+          </div>
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
             Charger records use reported, non-live status. Editing a charger does not confirm it is
             working right now, available, unoccupied, compatible, accessible, or priced as shown.
             Source confidence is about data provenance, not EVReady field verification.
           </div>
-          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-4">
-            <label className="text-sm font-semibold text-slate-700">
-              Active
-              <select
-                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                onChange={(event) => setChargerActiveFilter(event.target.value)}
-                value={chargerActiveFilter}
-              >
-                <option value="all">All records</option>
-                <option value="true">Active only</option>
-                <option value="false">Inactive only</option>
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Reported status
-              <select
-                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                disabled={isChargerFormOptionsLoading || chargerFormOptions.statuses.length === 0}
-                onChange={(event) => setChargerStatusFilter(event.target.value)}
-                value={chargerStatusFilter}
-              >
-                <option value="all">All statuses</option>
-                {chargerFormOptions.statuses.map((status) => (
-                  <option key={status.value} value={status.value}>
-                    {status.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Source confidence
-              <select
-                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                disabled={isChargerFormOptionsLoading || chargerFormOptions.verificationStatuses.length === 0}
-                onChange={(event) => setChargerVerificationStatusFilter(event.target.value)}
-                value={chargerVerificationStatusFilter}
-              >
-                <option value="all">All source confidence</option>
-                {chargerFormOptions.verificationStatuses.map((status) => (
-                  <option key={status.value} value={status.value}>
-                    {status.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              City
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <input
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) => setChargerCityFilter(event.target.value)}
-                  placeholder="Optional city"
-                  type="text"
-                  value={chargerCityFilter}
-                />
-                <button
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  onClick={handleChargerFiltersApply}
-                  type="button"
-                >
-                  Apply
-                </button>
-              </div>
-            </label>
-          </div>
           {chargerPage.error ? <Alert message={chargerPage.error} /> : null}
           {chargerFormOptionsError ? <Alert message={chargerFormOptionsError} /> : null}
           {chargerFormError ? <Alert message={chargerFormError} /> : null}
           {chargerFormMessage ? <SuccessMessage message={chargerFormMessage} /> : null}
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+          {chargerManagementView === 'list' ? (
             <div className="space-y-4">
+              <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-4">
+                <label className="text-sm font-semibold text-slate-700">
+                  Active
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) => setChargerActiveFilter(event.target.value)}
+                    value={chargerActiveFilter}
+                  >
+                    <option value="all">All records</option>
+                    <option value="true">Active only</option>
+                    <option value="false">Inactive only</option>
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Reported status
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    disabled={isChargerFormOptionsLoading || chargerFormOptions.statuses.length === 0}
+                    onChange={(event) => setChargerStatusFilter(event.target.value)}
+                    value={chargerStatusFilter}
+                  >
+                    <option value="all">All statuses</option>
+                    {chargerFormOptions.statuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Source confidence
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    disabled={isChargerFormOptionsLoading || chargerFormOptions.verificationStatuses.length === 0}
+                    onChange={(event) => setChargerVerificationStatusFilter(event.target.value)}
+                    value={chargerVerificationStatusFilter}
+                  >
+                    <option value="all">All source confidence</option>
+                    {chargerFormOptions.verificationStatuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  City
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                      onChange={(event) => setChargerCityFilter(event.target.value)}
+                      placeholder="Optional city"
+                      type="text"
+                      value={chargerCityFilter}
+                    />
+                    <button
+                      className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={handleChargerFiltersApply}
+                      type="button"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </label>
+              </div>
               <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -1691,7 +1744,7 @@ const AdminDashboard = () => {
                             onClick={() => void handleSelectCharger(charger)}
                             type="button"
                           >
-                            View/edit
+                            View/Edit
                           </button>
                         </td>
                       </tr>
@@ -1708,9 +1761,10 @@ const AdminDashboard = () => {
                 onNext={() => void loadChargers(chargerPage.page + 1)}
                 onPrevious={() => void loadChargers(chargerPage.page - 1)}
                 page={chargerPage.page}
-                showNext={hasNextPage(chargerPage)}
+                showNext={hasNextPaginatedPage(chargerPage)}
               />
             </div>
+          ) : (
             <ChargerFormPanel
               errors={chargerFormErrors}
               form={chargerForm}
@@ -1718,14 +1772,14 @@ const AdminDashboard = () => {
               isDetailLoading={isChargerDetailLoading}
               isOptionsLoading={isChargerFormOptionsLoading}
               isSaving={isSavingCharger}
-              onCancelEdit={startCreateCharger}
+              onCancel={returnToChargerList}
               onSave={() => void handleChargerSave()}
               onUpdate={updateChargerForm}
               options={chargerFormOptions}
               optionsError={chargerFormOptionsError}
               selectedCharger={selectedCharger}
             />
-          </div>
+          )}
         </section>
       ) : (
         <section className="flex flex-col gap-4">
@@ -1894,7 +1948,7 @@ type ChargerFormPanelProps = {
   isDetailLoading: boolean;
   isOptionsLoading: boolean;
   isSaving: boolean;
-  onCancelEdit: () => void;
+  onCancel: () => void;
   onSave: () => void;
   onUpdate: <Key extends keyof ChargerFormState>(key: Key, value: ChargerFormState[Key]) => void;
   options: ChargerFormOptions;
@@ -1909,7 +1963,7 @@ const ChargerFormPanel = ({
   isDetailLoading,
   isOptionsLoading,
   isSaving,
-  onCancelEdit,
+  onCancel,
   onSave,
   onUpdate,
   options,
@@ -1923,22 +1977,13 @@ const ChargerFormPanel = ({
       <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-bold text-slate-950">
-            {formMode === 'create' ? 'Create charger' : `Edit charger ${formatValue(selectedCharger?.id)}`}
+            {formMode === 'create' ? 'Add new charger' : `Edit charger ${formatValue(selectedCharger?.id)}`}
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Reported status is not live availability. Source confidence is not field verification.
           </p>
           {isDetailLoading ? <p className="mt-1 text-sm text-slate-500">Loading charger details...</p> : null}
         </div>
-        {formMode === 'edit' ? (
-          <button
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            onClick={onCancelEdit}
-            type="button"
-          >
-            New charger
-          </button>
-        ) : null}
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -2091,14 +2136,24 @@ const ChargerFormPanel = ({
         </label>
       </div>
 
-      <button
-        className="mt-5 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-        disabled={isDisabled}
-        onClick={onSave}
-        type="button"
-      >
-        {isSaving ? 'Saving...' : formMode === 'create' ? 'Create charger' : 'Save charger'}
-      </button>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <button
+          className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          disabled={isDisabled}
+          onClick={onSave}
+          type="button"
+        >
+          {isSaving ? 'Saving...' : formMode === 'create' ? 'Add charger' : 'Save charger'}
+        </button>
+        <button
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isSaving}
+          onClick={onCancel}
+          type="button"
+        >
+          Cancel
+        </button>
+      </div>
     </aside>
   );
 };

@@ -158,7 +158,8 @@ Dedicated vehicle detail pages at `/vehicles/:id` are the chosen direction for d
 
 Vehicle cards and detail pages may show approved-only rating aggregates from the backend. Unrated
 vehicles should use conservative wording such as be the first to review instead of fake ratings.
-Catalog browsing uses a simple load-more pattern so filters remain lightweight on mobile.
+Catalog browsing uses backend pagination with scroll-based next-page loading so the initial view
+stays lightweight on mobile without fetching every matching vehicle at once.
 
 ### Charger Directory
 
@@ -181,8 +182,8 @@ Approved public feedback may be shown on charger detail pages, but it must remai
 public charger status and must not imply live availability, access, compatibility, occupancy, or
 pricing.
 
-Directory browsing uses a simple load-more pattern. Charger rating aggregates, charger-directory
-feedback summaries, and live availability remain deferred.
+Directory browsing uses backend pagination with scroll-based next-page loading. Charger rating
+aggregates, charger-directory feedback summaries, and live availability remain deferred.
 
 ### Guides and Content
 

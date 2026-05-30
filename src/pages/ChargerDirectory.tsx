@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
-import { ApiError, apiClient } from '../utils/api';
+import { ApiError, apiClient, type PageResponse } from '../utils/api';
 
 type ChargingType = 'AC' | 'DC' | 'AC_DC';
 type ChargerStatus = 'OPERATIONAL' | 'LIMITED' | 'COMING_SOON' | 'UNKNOWN';
@@ -55,7 +55,7 @@ type FilterValues = {
 };
 
 const allFilterValue = 'all';
-const chargerVisibleStep = 6;
+const chargerPageSize = 6;
 
 const initialFilters: FilterValues = {
   city: allFilterValue,
@@ -92,7 +92,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 });
 
-function buildChargerQuery(filters: FilterValues) {
+function buildChargerQuery(filters: FilterValues, page: number) {
   const params = new URLSearchParams();
 
   if (filters.city !== allFilterValue) {
@@ -112,10 +112,12 @@ function buildChargerQuery(filters: FilterValues) {
   }
 
   params.set('sort', 'default');
+  params.set('page', String(page));
+  params.set('size', String(chargerPageSize));
 
   const query = params.toString();
 
-  return query ? `/api/v1/chargers?${query}` : '/api/v1/chargers';
+  return `/api/v1/chargers?${query}`;
 }
 
 function getErrorMessage(error: unknown) {
@@ -178,17 +180,7 @@ function getAllowedSearchValue<Value extends string>(
   return value && allowedValues.includes(value as Value) ? (value as Value) : fallback;
 }
 
-function getVisibleCountFromSearchParams(searchParams: URLSearchParams) {
-  const visibleCount = Number(searchParams.get('visible'));
-
-  if (!Number.isFinite(visibleCount) || visibleCount < chargerVisibleStep) {
-    return chargerVisibleStep;
-  }
-
-  return Math.floor(visibleCount / chargerVisibleStep) * chargerVisibleStep;
-}
-
-function buildListingSearchParams(filters: FilterValues, visibleCount: number) {
+function buildListingSearchParams(filters: FilterValues) {
   const params = new URLSearchParams();
 
   if (filters.city !== initialFilters.city) {
@@ -207,11 +199,40 @@ function buildListingSearchParams(filters: FilterValues, visibleCount: number) {
     params.set('status', filters.status);
   }
 
-  if (visibleCount > chargerVisibleStep) {
-    params.set('visible', String(visibleCount));
+  return params;
+}
+
+function normalizeChargerPage(
+  response: PageResponse<BackendCharger> | BackendCharger[],
+  fallbackPage: number,
+) {
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      page: fallbackPage,
+      totalElements: response.length,
+      totalPages: 1,
+    };
   }
 
-  return params;
+  if (!Array.isArray(response.content)) {
+    throw new Error('Charger data response was not a paginated list.');
+  }
+
+  return {
+    items: response.content,
+    page:
+      typeof response.page === 'number'
+        ? response.page
+        : typeof response.number === 'number'
+          ? response.number
+          : fallbackPage,
+    totalElements:
+      typeof response.totalElements === 'number'
+        ? response.totalElements
+        : response.content.length,
+    totalPages: typeof response.totalPages === 'number' ? response.totalPages : 1,
+  };
 }
 
 export default function ChargerDirectory() {
@@ -222,29 +243,30 @@ export default function ChargerDirectory() {
   const [chargers, setChargers] = useState<Charger[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [chargerTypes, setChargerTypes] = useState<ChargerType[]>([]);
-  const [visibleCount, setVisibleCount] = useState(() =>
-    getVisibleCountFromSearchParams(searchParams),
-  );
+  const [loadedPage, setLoadedPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingNextPage, setIsLoadingNextPage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cityOptionsErrorMessage, setCityOptionsErrorMessage] = useState<string | null>(null);
   const [hasLoadedCityOptions, setHasLoadedCityOptions] = useState(false);
   const [chargerTypesErrorMessage, setChargerTypesErrorMessage] = useState<string | null>(null);
+  const nextPageSentinelRef = useRef<HTMLDivElement | null>(null);
+  const activeChargerQueryRef = useRef('');
+  const isFetchingNextChargerPageRef = useRef(false);
   const listingSearch = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
-  const chargerQuery = useMemo(() => buildChargerQuery(filters), [
+  const chargerQueryBase = useMemo(() => buildChargerQuery(filters, 0), [
     filters.chargerTypeId,
     filters.chargingType,
     filters.city,
     filters.status,
   ]);
-
-  const visibleChargerCount = Math.min(visibleCount, chargers.length);
-  const visibleChargers = chargers.slice(0, visibleChargerCount);
+  const hasNextPage = loadedPage + 1 < totalPages;
 
   useEffect(() => {
     setFilters(getFiltersFromSearchParams(searchParams));
-    setVisibleCount(getVisibleCountFromSearchParams(searchParams));
   }, [searchParams]);
 
   useEffect(() => {
@@ -326,43 +348,110 @@ export default function ChargerDirectory() {
     };
   }, []);
 
-  useEffect(() => {
-    let isCurrentRequest = true;
+  const loadChargerPage = useCallback(
+    (page: number, mode: 'replace' | 'append') => {
+      if (mode === 'append' && isFetchingNextChargerPageRef.current) {
+        return Promise.resolve();
+      }
 
-    setIsLoading(true);
-    setErrorMessage(null);
+      const requestQuery = buildChargerQuery(filters, page);
 
-    apiClient
-      .get<BackendCharger[]>(chargerQuery)
-      .then((chargerResponse) => {
-        if (!isCurrentRequest) {
-          return;
-        }
-
-        if (!Array.isArray(chargerResponse)) {
-          throw new Error('Charger data response was not a list.');
-        }
-
-        setChargers(chargerResponse.map(normalizeCharger));
-      })
-      .catch((error: unknown) => {
-        if (!isCurrentRequest) {
-          return;
-        }
-
+      if (mode === 'replace') {
+        activeChargerQueryRef.current = chargerQueryBase;
+        isFetchingNextChargerPageRef.current = false;
         setChargers([]);
-        setErrorMessage(getErrorMessage(error));
-      })
-      .finally(() => {
-        if (isCurrentRequest) {
-          setIsLoading(false);
-        }
-      });
+        setLoadedPage(0);
+        setTotalPages(1);
+        setTotalElements(0);
+        setIsLoadingNextPage(false);
+        setIsLoading(true);
+      } else {
+        isFetchingNextChargerPageRef.current = true;
+        setIsLoadingNextPage(true);
+      }
 
-    return () => {
-      isCurrentRequest = false;
-    };
-  }, [chargerQuery]);
+      setErrorMessage(null);
+
+      return apiClient
+        .get<PageResponse<BackendCharger> | BackendCharger[]>(requestQuery)
+        .then((chargerResponse) => {
+          if (activeChargerQueryRef.current !== chargerQueryBase) {
+            return;
+          }
+
+          const chargerPage = normalizeChargerPage(chargerResponse, page);
+          const normalizedChargers = chargerPage.items.map(normalizeCharger);
+
+          setChargers((currentChargers) =>
+            mode === 'replace' ? normalizedChargers : [...currentChargers, ...normalizedChargers],
+          );
+          setLoadedPage(chargerPage.page);
+          setTotalPages(chargerPage.totalPages);
+          setTotalElements(chargerPage.totalElements);
+        })
+        .catch((error: unknown) => {
+          if (activeChargerQueryRef.current !== chargerQueryBase) {
+            return;
+          }
+
+          if (mode === 'replace') {
+            setChargers([]);
+          }
+
+          setErrorMessage(getErrorMessage(error));
+        })
+        .finally(() => {
+          if (mode === 'append') {
+            isFetchingNextChargerPageRef.current = false;
+          }
+
+          if (activeChargerQueryRef.current !== chargerQueryBase) {
+            return;
+          }
+
+          if (mode === 'replace') {
+            setIsLoading(false);
+          } else {
+            setIsLoadingNextPage(false);
+          }
+        });
+    },
+    [
+      chargerQueryBase,
+      filters.chargerTypeId,
+      filters.chargingType,
+      filters.city,
+      filters.status,
+    ],
+  );
+
+  useEffect(() => {
+    activeChargerQueryRef.current = chargerQueryBase;
+    void loadChargerPage(0, 'replace');
+  }, [chargerQueryBase, loadChargerPage]);
+
+  useEffect(() => {
+    const sentinel = nextPageSentinelRef.current;
+
+    if (!sentinel || !hasNextPage || isLoading || isLoadingNextPage || errorMessage) {
+      return undefined;
+    }
+
+    let hasRequestedNextPage = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!hasRequestedNextPage && entries.some((entry) => entry.isIntersecting)) {
+          hasRequestedNextPage = true;
+          void loadChargerPage(loadedPage + 1, 'append');
+        }
+      },
+      { rootMargin: '240px 0px' },
+    );
+
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [errorMessage, hasNextPage, isLoading, isLoadingNextPage, loadChargerPage, loadedPage]);
 
   function updateFilter<Key extends keyof FilterValues>(key: Key, value: FilterValues[Key]) {
     const nextFilters = {
@@ -371,21 +460,12 @@ export default function ChargerDirectory() {
     };
 
     setFilters(nextFilters);
-    setVisibleCount(chargerVisibleStep);
-    setSearchParams(buildListingSearchParams(nextFilters, chargerVisibleStep));
+    setSearchParams(buildListingSearchParams(nextFilters));
   }
 
   function clearFilters() {
     setFilters(initialFilters);
-    setVisibleCount(chargerVisibleStep);
-    setSearchParams(buildListingSearchParams(initialFilters, chargerVisibleStep));
-  }
-
-  function loadMoreChargers() {
-    const nextVisibleCount = visibleCount + chargerVisibleStep;
-
-    setVisibleCount(nextVisibleCount);
-    setSearchParams(buildListingSearchParams(filters, nextVisibleCount));
+    setSearchParams(buildListingSearchParams(initialFilters));
   }
 
   return (
@@ -502,12 +582,12 @@ export default function ChargerDirectory() {
           <div className="space-y-4">
             <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Showing 1-{visibleChargerCount} of {chargers.length} chargers
+                Showing {chargers.length} of {totalElements} chargers
               </span>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {visibleChargers.map((charger) => (
+              {chargers.map((charger) => (
                 <ChargerCard
                   key={charger.id}
                   charger={charger}
@@ -517,14 +597,12 @@ export default function ChargerDirectory() {
               ))}
             </div>
 
-            {visibleCount < chargers.length ? (
-              <button
-                className="w-full rounded-md border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
-                type="button"
-                onClick={loadMoreChargers}
-              >
-                Load more
-              </button>
+            <div ref={nextPageSentinelRef} className="min-h-1" aria-hidden="true" />
+
+            {isLoadingNextPage ? (
+              <p className="text-sm text-slate-600">Loading more chargers...</p>
+            ) : !hasNextPage ? (
+              <p className="text-sm text-slate-500">All matching chargers loaded.</p>
             ) : null}
           </div>
         ) : (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import {
@@ -7,7 +7,7 @@ import {
   type Vehicle,
   type VehicleCategory,
 } from '../data/vehicles';
-import { ApiError, apiClient } from '../utils/api';
+import { ApiError, apiClient, type PageResponse } from '../utils/api';
 
 type DcChargingFilter = 'all' | 'yes' | 'no';
 type CategoryFilter = 'all' | VehicleCategory;
@@ -57,7 +57,7 @@ type Brand = {
 };
 
 const allFilterValue = 'all';
-const vehicleVisibleStep = 6;
+const vehiclePageSize = 6;
 
 const initialFilters: FilterValues = {
   category: allFilterValue,
@@ -154,11 +154,15 @@ const verificationStatusClasses: Record<VehicleVerificationStatus, string> = {
   UNVERIFIED: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
-function buildVehicleQuery(filters: FilterValues) {
+function buildVehicleQuery(filters: FilterValues, page: number) {
   const params = new URLSearchParams();
 
   if (filters.category !== allFilterValue) {
     params.set('type', filters.category);
+  }
+
+  if (filters.vehicleType !== allFilterValue) {
+    params.set('vehicleType', filters.vehicleType);
   }
 
   if (filters.brandId !== allFilterValue) {
@@ -178,10 +182,12 @@ function buildVehicleQuery(filters: FilterValues) {
   }
 
   params.set('sort', backendSortValues[filters.sort]);
+  params.set('page', String(page));
+  params.set('size', String(vehiclePageSize));
 
   const query = params.toString();
 
-  return query ? `/api/v1/vehicles?${query}` : '/api/v1/vehicles';
+  return `/api/v1/vehicles?${query}`;
 }
 
 function getErrorMessage(error: unknown) {
@@ -266,17 +272,7 @@ function getAllowedSearchValue<Value extends string>(
   return value && allowedValues.includes(value as Value) ? (value as Value) : fallback;
 }
 
-function getVisibleCountFromSearchParams(searchParams: URLSearchParams) {
-  const visibleCount = Number(searchParams.get('visible'));
-
-  if (!Number.isFinite(visibleCount) || visibleCount < vehicleVisibleStep) {
-    return vehicleVisibleStep;
-  }
-
-  return Math.floor(visibleCount / vehicleVisibleStep) * vehicleVisibleStep;
-}
-
-function buildListingSearchParams(filters: FilterValues, visibleCount: number) {
+function buildListingSearchParams(filters: FilterValues) {
   const params = new URLSearchParams();
 
   if (filters.category !== initialFilters.category) {
@@ -307,11 +303,40 @@ function buildListingSearchParams(filters: FilterValues, visibleCount: number) {
     params.set('sort', filters.sort);
   }
 
-  if (visibleCount > vehicleVisibleStep) {
-    params.set('visible', String(visibleCount));
+  return params;
+}
+
+function normalizeVehiclePage(
+  response: PageResponse<CatalogBackendVehicle> | CatalogBackendVehicle[],
+  fallbackPage: number,
+) {
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      page: fallbackPage,
+      totalElements: response.length,
+      totalPages: 1,
+    };
   }
 
-  return params;
+  if (!Array.isArray(response.content)) {
+    throw new Error('Vehicle data response was not a paginated list.');
+  }
+
+  return {
+    items: response.content,
+    page:
+      typeof response.page === 'number'
+        ? response.page
+        : typeof response.number === 'number'
+          ? response.number
+          : fallbackPage,
+    totalElements:
+      typeof response.totalElements === 'number'
+        ? response.totalElements
+        : response.content.length,
+    totalPages: typeof response.totalPages === 'number' ? response.totalPages : 1,
+  };
 }
 
 export default function VehicleCatalog() {
@@ -321,65 +346,117 @@ export default function VehicleCatalog() {
   );
   const [vehicles, setVehicles] = useState<CatalogVehicle[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [visibleCount, setVisibleCount] = useState(() =>
-    getVisibleCountFromSearchParams(searchParams),
-  );
+  const [loadedPage, setLoadedPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingNextPage, setIsLoadingNextPage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [brandErrorMessage, setBrandErrorMessage] = useState<string | null>(null);
+  const nextPageSentinelRef = useRef<HTMLDivElement | null>(null);
+  const activeVehicleQueryRef = useRef('');
+  const isFetchingNextVehiclePageRef = useRef(false);
   const listingSearch = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
-  const vehicleQuery = useMemo(() => buildVehicleQuery(filters), [
+  const vehicleQueryBase = useMemo(() => buildVehicleQuery(filters, 0), [
     filters.brandId,
     filters.category,
     filters.dcCharging,
     filters.price,
     filters.range,
     filters.sort,
+    filters.vehicleType,
   ]);
+  const hasNextPage = loadedPage + 1 < totalPages;
 
   useEffect(() => {
     setFilters(getFiltersFromSearchParams(searchParams));
-    setVisibleCount(getVisibleCountFromSearchParams(searchParams));
   }, [searchParams]);
 
-  useEffect(() => {
-    let isCurrentRequest = true;
+  const loadVehiclePage = useCallback(
+    (page: number, mode: 'replace' | 'append') => {
+      if (mode === 'append' && isFetchingNextVehiclePageRef.current) {
+        return Promise.resolve();
+      }
 
-    setIsLoading(true);
-    setErrorMessage(null);
+      const requestQuery = buildVehicleQuery(filters, page);
 
-    apiClient
-      .get<CatalogBackendVehicle[]>(vehicleQuery)
-      .then((vehicleResponse) => {
-        if (!isCurrentRequest) {
-          return;
-        }
-
-        if (!Array.isArray(vehicleResponse)) {
-          throw new Error('Vehicle data response was not a list.');
-        }
-
-        setVehicles(vehicleResponse.map(normalizeCatalogVehicle));
-      })
-      .catch((error: unknown) => {
-        if (!isCurrentRequest) {
-          return;
-        }
-
+      if (mode === 'replace') {
+        activeVehicleQueryRef.current = vehicleQueryBase;
+        isFetchingNextVehiclePageRef.current = false;
         setVehicles([]);
-        setErrorMessage(getErrorMessage(error));
-      })
-      .finally(() => {
-        if (isCurrentRequest) {
-          setIsLoading(false);
-        }
-      });
+        setLoadedPage(0);
+        setTotalPages(1);
+        setTotalElements(0);
+        setIsLoadingNextPage(false);
+        setIsLoading(true);
+      } else {
+        isFetchingNextVehiclePageRef.current = true;
+        setIsLoadingNextPage(true);
+      }
 
-    return () => {
-      isCurrentRequest = false;
-    };
-  }, [vehicleQuery]);
+      setErrorMessage(null);
+
+      return apiClient
+        .get<PageResponse<CatalogBackendVehicle> | CatalogBackendVehicle[]>(requestQuery)
+        .then((vehicleResponse) => {
+          if (activeVehicleQueryRef.current !== vehicleQueryBase) {
+            return;
+          }
+
+          const vehiclePage = normalizeVehiclePage(vehicleResponse, page);
+          const normalizedVehicles = vehiclePage.items.map(normalizeCatalogVehicle);
+
+          setVehicles((currentVehicles) =>
+            mode === 'replace' ? normalizedVehicles : [...currentVehicles, ...normalizedVehicles],
+          );
+          setLoadedPage(vehiclePage.page);
+          setTotalPages(vehiclePage.totalPages);
+          setTotalElements(vehiclePage.totalElements);
+        })
+        .catch((error: unknown) => {
+          if (activeVehicleQueryRef.current !== vehicleQueryBase) {
+            return;
+          }
+
+          if (mode === 'replace') {
+            setVehicles([]);
+          }
+
+          setErrorMessage(getErrorMessage(error));
+        })
+        .finally(() => {
+          if (mode === 'append') {
+            isFetchingNextVehiclePageRef.current = false;
+          }
+
+          if (activeVehicleQueryRef.current !== vehicleQueryBase) {
+            return;
+          }
+
+          if (mode === 'replace') {
+            setIsLoading(false);
+          } else {
+            setIsLoadingNextPage(false);
+          }
+        });
+    },
+    [
+      filters.brandId,
+      filters.category,
+      filters.dcCharging,
+      filters.price,
+      filters.range,
+      filters.sort,
+      filters.vehicleType,
+      vehicleQueryBase,
+    ],
+  );
+
+  useEffect(() => {
+    activeVehicleQueryRef.current = vehicleQueryBase;
+    void loadVehiclePage(0, 'replace');
+  }, [loadVehiclePage, vehicleQueryBase]);
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -427,54 +504,28 @@ export default function VehicleCatalog() {
     [categoryFilteredVehicles],
   );
 
-  const filteredVehicles = useMemo(() => {
-    const matchingVehicles = vehicles.filter((vehicle) => {
-      const matchesCategory =
-        filters.category === allFilterValue || vehicle.category === filters.category;
-      const matchesType =
-        filters.vehicleType === allFilterValue || vehicle.vehicleType === filters.vehicleType;
-      const matchesPrice =
-        filters.price === 'all' || vehicle.approxPricePkr <= priceLimits[filters.price];
-      const matchesRange =
-        filters.range === 'all' || vehicle.practicalCityRangeKm >= rangeMinimums[filters.range];
-      const matchesDcCharging =
-        filters.category === 'Bike' ||
-        filters.dcCharging === 'all' ||
-        (filters.dcCharging === 'yes' && vehicle.supportsDcCharging) ||
-        (filters.dcCharging === 'no' && !vehicle.supportsDcCharging);
+  useEffect(() => {
+    const sentinel = nextPageSentinelRef.current;
 
-      return (
-        matchesCategory &&
-        matchesType &&
-        matchesPrice &&
-        matchesRange &&
-        matchesDcCharging
-      );
-    });
+    if (!sentinel || !hasNextPage || isLoading || isLoadingNextPage || errorMessage) {
+      return undefined;
+    }
 
-    return [...matchingVehicles].sort((firstVehicle, secondVehicle) => {
-      if (filters.sort === 'price-asc') {
-        return firstVehicle.approxPricePkr - secondVehicle.approxPricePkr;
-      }
+    let hasRequestedNextPage = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!hasRequestedNextPage && entries.some((entry) => entry.isIntersecting)) {
+          hasRequestedNextPage = true;
+          void loadVehiclePage(loadedPage + 1, 'append');
+        }
+      },
+      { rootMargin: '240px 0px' },
+    );
 
-      if (filters.sort === 'price-desc') {
-        return secondVehicle.approxPricePkr - firstVehicle.approxPricePkr;
-      }
+    observer.observe(sentinel);
 
-      if (filters.sort === 'range-desc') {
-        return secondVehicle.practicalCityRangeKm - firstVehicle.practicalCityRangeKm;
-      }
-
-      if (filters.sort === 'range-asc') {
-        return firstVehicle.practicalCityRangeKm - secondVehicle.practicalCityRangeKm;
-      }
-
-      return 0;
-    });
-  }, [filters, vehicles]);
-
-  const visibleVehicleCount = Math.min(visibleCount, filteredVehicles.length);
-  const visibleVehicles = filteredVehicles.slice(0, visibleVehicleCount);
+    return () => observer.disconnect();
+  }, [errorMessage, hasNextPage, isLoading, isLoadingNextPage, loadVehiclePage, loadedPage]);
 
   function updateFilter<Key extends keyof FilterValues>(key: Key, value: FilterValues[Key]) {
     const nextFilters = {
@@ -483,8 +534,7 @@ export default function VehicleCatalog() {
     };
 
     setFilters(nextFilters);
-    setVisibleCount(vehicleVisibleStep);
-    setSearchParams(buildListingSearchParams(nextFilters, vehicleVisibleStep));
+    setSearchParams(buildListingSearchParams(nextFilters));
   }
 
   function updateCategory(category: CategoryFilter) {
@@ -497,21 +547,12 @@ export default function VehicleCatalog() {
     };
 
     setFilters(nextFilters);
-    setVisibleCount(vehicleVisibleStep);
-    setSearchParams(buildListingSearchParams(nextFilters, vehicleVisibleStep));
+    setSearchParams(buildListingSearchParams(nextFilters));
   }
 
   function clearFilters() {
     setFilters(initialFilters);
-    setVisibleCount(vehicleVisibleStep);
-    setSearchParams(buildListingSearchParams(initialFilters, vehicleVisibleStep));
-  }
-
-  function loadMoreVehicles() {
-    const nextVisibleCount = visibleCount + vehicleVisibleStep;
-
-    setVisibleCount(nextVisibleCount);
-    setSearchParams(buildListingSearchParams(filters, nextVisibleCount));
+    setSearchParams(buildListingSearchParams(initialFilters));
   }
 
   return (
@@ -670,28 +711,26 @@ export default function VehicleCatalog() {
             <p className="font-semibold">EV catalogue could not be loaded.</p>
             <p className="mt-1">{errorMessage}</p>
           </div>
-        ) : filteredVehicles.length > 0 ? (
+        ) : vehicles.length > 0 ? (
           <div className="space-y-4">
             <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Showing 1-{visibleVehicleCount} of {filteredVehicles.length} vehicles
+                Showing {vehicles.length} of {totalElements} vehicles
               </span>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {visibleVehicles.map((vehicle) => (
+              {vehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} listingSearch={listingSearch} vehicle={vehicle} />
               ))}
             </div>
 
-            {visibleCount < filteredVehicles.length ? (
-              <button
-                className="w-full rounded-md border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
-                type="button"
-                onClick={loadMoreVehicles}
-              >
-                Load more
-              </button>
+            <div ref={nextPageSentinelRef} className="min-h-1" aria-hidden="true" />
+
+            {isLoadingNextPage ? (
+              <p className="text-sm text-slate-600">Loading more vehicles...</p>
+            ) : !hasNextPage ? (
+              <p className="text-sm text-slate-500">All matching vehicles loaded.</p>
             ) : null}
           </div>
         ) : (
