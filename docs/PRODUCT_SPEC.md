@@ -170,7 +170,7 @@ First release must not claim live charger status unless the backend has a reliab
 
 Charger API responses are expected to include `verificationStatus`, separate from operational `status`, and directory cards should show small source-confidence badges while still asking users to verify charger details before travel.
 
-Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability, and modal-based feedback/review display remains deferred.
+Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability.
 
 Charger detail pages can accept public charger feedback submissions through the backend. Submitted
 feedback is stored as pending and is not shown publicly unless approved through moderation.

@@ -354,10 +354,11 @@ export default function ChargerDetail() {
     chargerFeedbackApi
       .submitFeedback(id, feedbackSubmission)
       .then((response) => {
+        const responseMessage = isMeaningfulString(response.message)
+          ? response.message.trim()
+          : 'Feedback submitted for review.';
         setFeedbackSuccessMessage(
-          isMeaningfulString(response.message)
-            ? response.message.trim()
-            : 'Feedback submitted for review. It is not public and will not change charger status.',
+          `${responseMessage} It is not public yet and does not update live charger availability or reported status.`,
         );
         setFeedbackForm(initialFeedbackForm);
       })
@@ -500,9 +501,9 @@ export default function ChargerDetail() {
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-slate-950">Share charger feedback</h2>
                 <p className="text-sm leading-6 text-slate-600">
-                  Feedback is submitted for EVReady review and is not shown publicly yet. It does
-                  not update this charger's reported status or confirm live availability, access,
-                  compatibility, occupancy, or pricing.
+                  Submitted feedback is reviewed before any public display. It is not live charger
+                  availability and does not confirm that the charger is working, accessible,
+                  unoccupied, compatible with your vehicle, or priced as shown.
                 </p>
               </div>
 
@@ -515,13 +516,14 @@ export default function ChargerDetail() {
               <form className="mt-5 space-y-4" onSubmit={handleFeedbackSubmit}>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="text-sm font-medium text-slate-800">
-                    Rating <span className="font-normal text-slate-500">(optional)</span>
+                    User experience rating{' '}
+                    <span className="font-normal text-slate-500">(optional)</span>
                     <select
                       className={inputClass}
                       value={feedbackForm.rating}
                       onChange={(event) => updateFeedbackField('rating', event.target.value)}
                     >
-                      <option value="">No rating</option>
+                      <option value="">No experience rating</option>
                       <option value="1">1 - Very poor</option>
                       <option value="2">2 - Poor</option>
                       <option value="3">3 - Okay</option>
@@ -622,17 +624,18 @@ export default function ChargerDetail() {
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-slate-950">Community feedback</h2>
                 <p className="text-sm leading-6 text-slate-600">
-                  Approved feedback from users is reviewed before display. It is not live charger
-                  availability and does not confirm operation, access, occupancy, compatibility, or
-                  pricing. Verify details before travel.
+                  Approved user feedback is reviewed before display. This feedback is
+                  user-submitted and is not live charger availability. It does not confirm the
+                  charger is working right now, accessible, unoccupied, compatible with your
+                  vehicle, or priced as shown. Verify charger details before travel.
                 </p>
               </div>
 
               {approvedFeedbackPage.isLoading ? (
-                <StateMessage>Loading approved charger feedback...</StateMessage>
+                <StateMessage>Loading approved user feedback...</StateMessage>
               ) : approvedFeedbackPage.errorMessage ? (
                 <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
-                  <p className="font-semibold">Approved charger feedback could not be loaded.</p>
+                  <p className="font-semibold">Approved user feedback could not be loaded.</p>
                   <p className="mt-1">{approvedFeedbackPage.errorMessage}</p>
                 </div>
               ) : approvedFeedbackPage.feedback.length > 0 ? (
@@ -666,7 +669,8 @@ export default function ChargerDetail() {
                 </div>
               ) : (
                 <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  No approved charger feedback yet.
+                  No approved user feedback yet. This does not indicate live charger availability
+                  or reliability.
                 </div>
               )}
             </section>
@@ -717,7 +721,7 @@ function ApprovedFeedbackCard({ feedback }: { feedback: PublicChargerFeedback })
       <div className="flex flex-wrap items-center gap-2">
         {feedback.rating !== null && feedback.rating !== undefined && feedback.rating !== '' ? (
           <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-            Rating {feedback.rating}/5
+            User experience {feedback.rating}/5
           </span>
         ) : null}
         {isMeaningfulString(feedback.feedbackType) ? (
