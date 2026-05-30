@@ -90,13 +90,12 @@ Combines daily range, home charging access, city support, savings, solar availab
 
 ### Expanded Admin and Data-Management Planning
 
-The frontend now has a minimal protected read-only Admin UI for lead and contact visibility. The
-next backend-facing direction is planning how vehicle, charger, lead, and contact data should be
-managed safely beyond that read-only view.
+The frontend now has a protected Admin UI for lead/contact visibility and status updates, vehicle
+review moderation, charger feedback moderation, and charger directory record management.
 
 Scope:
 
-- Plan expanded admin/data-management responsibilities in the backend repo and docs.
+- Keep expanded admin/data-management responsibilities focused and protected.
 - Keep public frontend calculators frontend-side where users manually enter assumptions.
 - Do not expand the Admin UI into payments, bookings, dealer-management, ratings, reviews, or
   public user accounts as part of this planning step.
@@ -171,6 +170,10 @@ First release must not claim live charger status unless the backend has a reliab
 Charger API responses are expected to include `verificationStatus`, separate from operational `status`, and directory cards should show small source-confidence badges while still asking users to verify charger details before travel.
 
 Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability.
+
+The protected Admin Dashboard can create and edit charger directory records through backend admin
+APIs. Admin charger management must label status as reported/non-live where practical and treat
+`verificationStatus` as source confidence, not EVReady field verification.
 
 Charger detail pages can accept public charger feedback submissions through the backend. Submitted
 feedback is stored as pending and is not shown publicly unless approved through moderation.

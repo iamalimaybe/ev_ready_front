@@ -16,6 +16,15 @@ type ChargerFeedbackListParams = {
   chargerId?: string;
 };
 
+type ChargerListParams = {
+  page?: number;
+  size?: number;
+  active?: string;
+  city?: string;
+  status?: string;
+  verificationStatus?: string;
+};
+
 const buildAdminUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
@@ -138,4 +147,40 @@ export const adminApiClient = {
     request<T>('GET', `/api/v1/admin/charger-feedback/${feedbackId}`),
   updateChargerFeedbackStatus: <T>(feedbackId: number | string, feedbackStatus: string) =>
     request<T>('PATCH', `/api/v1/admin/charger-feedback/${feedbackId}/status`, { feedbackStatus }),
+  listChargers: <T>({
+    page = 0,
+    size = 20,
+    active,
+    city,
+    status,
+    verificationStatus,
+  }: ChargerListParams = {}) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+    });
+
+    if (active) {
+      params.set('active', active);
+    }
+
+    if (city) {
+      params.set('city', city);
+    }
+
+    if (status) {
+      params.set('status', status);
+    }
+
+    if (verificationStatus) {
+      params.set('verificationStatus', verificationStatus);
+    }
+
+    return request<T>('GET', `/api/v1/admin/chargers?${params.toString()}`);
+  },
+  getCharger: <T>(chargerId: number | string) => request<T>('GET', `/api/v1/admin/chargers/${chargerId}`),
+  getChargerFormOptions: <T>() => request<T>('GET', '/api/v1/admin/chargers/form-options'),
+  createCharger: <T>(charger: Record<string, unknown>) => request<T>('POST', '/api/v1/admin/chargers', charger),
+  updateCharger: <T>(chargerId: number | string, charger: Record<string, unknown>) =>
+    request<T>('PATCH', `/api/v1/admin/chargers/${chargerId}`, charger),
 };

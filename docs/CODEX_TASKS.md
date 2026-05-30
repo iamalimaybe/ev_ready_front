@@ -113,8 +113,27 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Charger feedback wording now consistently frames submission, moderation, and approved public
   display as user-submitted feedback, separate from live charger availability or public charger
   status.
+- Admin Dashboard now includes protected charger record management for listing, creating, and
+  editing charger directory records through backend admin APIs.
 
 ## Completed
+
+### 2026-05-30 - Admin Charger Management UI
+
+Added protected Admin Dashboard charger management. Admin users can load paginated charger records,
+filter by active state, city, reported status, and source confidence, create new charger records,
+load selected charger details, edit charger fields, submit changes through backend admin APIs, and
+see backend validation errors where available. The form uses backend charger form options for
+charger types, charging types, reported statuses, and source-confidence statuses. The UI keeps
+reported charger status separate from live availability and does not add delete, bulk updates, CSV,
+map integration, image upload, fake records, or public page changes.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-30 - Charger Feedback UX Safety Wording Cleanup
 
