@@ -104,8 +104,134 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Vehicle rating/review controls now align with source-confidence badge rows on catalog cards and
   vehicle details, with no passive first-review text on Vehicle Detail.
 - Public Home and listing UI now use `EV Catalogue` wording instead of `Vehicle Catalog`.
+- Charger Detail now includes a public pending-feedback form backed by backend charger feedback
+  type options and submission APIs, without public feedback display or charger status updates.
+- Admin Dashboard now includes protected charger feedback moderation with backend-provided status
+  options, pending-first filtering, and no public charger status updates.
+- Charger Detail now shows approved-only public charger feedback from the backend without rating
+  aggregates, directory-card changes, or live availability implications.
+- Charger feedback wording now consistently frames submission, moderation, and approved public
+  display as user-submitted feedback, separate from live charger availability or public charger
+  status.
+- Admin Dashboard now includes protected charger record management for listing, creating, and
+  editing charger directory records through backend admin APIs.
+- Admin charger management now opens to a listing-first view, uses focused add/edit form states,
+  and relies on backend pagination metadata for charger list Previous/Next controls.
+- Public EV Catalogue and Charger Directory now request backend paginated results and load the next
+  page automatically when users scroll near the end of each list.
 
 ## Completed
+
+### 2026-05-30 - Admin Charger Management Layout and Pagination Cleanup
+
+Updated protected charger management so admins see the charger list and filters by default, can open
+a focused add-new-charger view from a round plus button, and can open focused edit views from each
+row's View/Edit action. Create and update success states return admins to the list and refresh or
+update list data safely. Charger list pagination now uses backend page metadata for Previous/Next
+controls instead of pretending plain array responses are paginated.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
+
+### 2026-05-30 - Public Catalogue Backend Pagination
+
+Updated EV Catalogue and Charger Directory browsing to request six-record backend pages, reset and
+refetch page 0 when filters or sorting change, append next pages through IntersectionObserver
+sentinels, and remove the manual Load More buttons. Existing detail links, source-confidence
+wording, filter query state, empty/loading/error states, and charger verify-before-travel guidance
+are preserved.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
+
+### 2026-05-30 - Admin Charger Management UI
+
+Added protected Admin Dashboard charger management. Admin users can load paginated charger records,
+filter by active state, city, reported status, and source confidence, create new charger records,
+load selected charger details, edit charger fields, submit changes through backend admin APIs, and
+see backend validation errors where available. The form uses backend charger form options for
+charger types, charging types, reported statuses, and source-confidence statuses. The UI keeps
+reported charger status separate from live availability and does not add delete, bulk updates, CSV,
+map integration, image upload, fake records, or public page changes.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
+
+### 2026-05-30 - Charger Feedback UX Safety Wording Cleanup
+
+Tightened charger feedback wording on Charger Detail and Admin Dashboard. Submission helper text,
+success copy, optional user-experience rating labels, approved-feedback loading/error/empty states,
+approved feedback cards, and admin moderation warnings now more clearly separate user-submitted
+feedback from public charger status, live availability, access, occupancy, compatibility, and
+pricing. No behavior, backend paths, rating aggregates, listing cards, or public feedback exposure
+rules were changed.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
+
+### 2026-05-30 - Approved Charger Feedback Display
+
+Added approved-only public charger feedback display to Charger Detail. The page now loads
+`GET /api/v1/chargers/{chargerId}/feedback?page=0&size=10`, shows loading, error, empty, and
+normal states, renders only safe public feedback fields, and provides simple Previous/Next
+pagination when backend paging indicates more results. Feedback display remains separate from
+reported charger status and does not add rating aggregates, directory-card changes, fake feedback,
+or live availability claims.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/utils/api.ts`
+
+### 2026-05-30 - Admin Charger Feedback Moderation UI
+
+Added protected Admin Dashboard support for charger feedback moderation. Admin users can load
+paginated charger feedback, default to pending feedback, filter by backend-provided feedback status
+and optional charger ID, review submitted fields, and update feedback status through the
+session-cookie admin API. Successful updates replace the feedback row locally and show a safe
+message that charger status was not changed. Public charger feedback display, charger rating
+aggregates, fake feedback, and public charger status updates were not added.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
+
+### 2026-05-30 - Charger Detail Public Feedback Submission
+
+Added a focused public charger feedback form to the Charger Detail page only. The page now loads
+backend charger feedback type options from `GET /api/v1/chargers/feedback-types`, supports optional
+ratings, posts feedback to `POST /api/v1/chargers/{chargerId}/feedback`, shows backend validation
+errors where possible, and displays a pending-review success message without showing public
+feedback, rating aggregates, or changing charger status.
+
+Fixed the optional rating validation type narrowing so the frontend TypeScript build can verify
+that blank ratings are allowed while selected ratings are checked from 1 to 5.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/utils/api.ts`
 
 ### 2026-05-29 - EV Catalogue Public Wording Cleanup
 

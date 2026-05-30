@@ -1,7 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import PageShell from '../components/PageShell';
-import { ApiError, apiClient } from '../utils/api';
+import {
+  ApiError,
+  apiClient,
+  chargerFeedbackApi,
+  type BackendFieldErrors,
+  type ChargerFeedbackSubmission,
+  type ChargerFeedbackTypeOption,
+  type PageResponse,
+  type PublicChargerFeedback,
+} from '../utils/api';
 
 type ChargingType = 'AC' | 'DC' | 'AC_DC';
 type ChargerStatus = 'OPERATIONAL' | 'LIMITED' | 'COMING_SOON' | 'UNKNOWN';
@@ -43,6 +52,26 @@ type ChargerDetailRecord = Omit<BackendChargerDetail, 'latitude' | 'longitude' |
   verificationStatus: ChargerVerificationStatus;
 };
 
+type ChargerFeedbackFormState = {
+  rating: string;
+  feedbackType: string;
+  message: string;
+  displayName: string;
+  city: string;
+  reportedByContact: string;
+};
+
+type ChargerFeedbackFormErrors = Partial<Record<keyof ChargerFeedbackFormState, string>>;
+
+type ApprovedFeedbackPageState = {
+  feedback: PublicChargerFeedback[];
+  page: number;
+  totalPages?: number;
+  totalElements?: number;
+  isLoading: boolean;
+  errorMessage: string | null;
+};
+
 const verificationStatusLabels: Record<ChargerVerificationStatus, string> = {
   OFFICIAL: 'Operator source-backed',
   DEALER_CONFIRMED: 'Provider source-backed',
@@ -61,6 +90,27 @@ const dateFormatter = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
+});
+
+const initialFeedbackForm: ChargerFeedbackFormState = {
+  rating: '',
+  feedbackType: '',
+  message: '',
+  displayName: '',
+  city: '',
+  reportedByContact: '',
+};
+
+const inputClass =
+  'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
+
+const approvedFeedbackPageSize = 10;
+
+const emptyApprovedFeedbackPage = (page = 0): ApprovedFeedbackPageState => ({
+  feedback: [],
+  page,
+  isLoading: false,
+  errorMessage: null,
 });
 
 function getErrorMessage(error: unknown) {
@@ -102,6 +152,29 @@ function normalizeChargerDetail(charger: BackendChargerDetail): ChargerDetailRec
   };
 }
 
+function normalizeApprovedFeedbackPage(
+  payload: PageResponse<PublicChargerFeedback> | PublicChargerFeedback[],
+  fallbackPage: number,
+): ApprovedFeedbackPageState {
+  if (Array.isArray(payload)) {
+    return {
+      feedback: payload,
+      page: fallbackPage,
+      isLoading: false,
+      errorMessage: null,
+    };
+  }
+
+  return {
+    feedback: Array.isArray(payload.content) ? payload.content : [],
+    page: typeof payload.number === 'number' ? payload.number : payload.page ?? fallbackPage,
+    totalPages: payload.totalPages,
+    totalElements: payload.totalElements,
+    isLoading: false,
+    errorMessage: null,
+  };
+}
+
 export default function ChargerDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -109,6 +182,16 @@ export default function ChargerDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
+  const [feedbackTypes, setFeedbackTypes] = useState<ChargerFeedbackTypeOption[]>([]);
+  const [feedbackTypeErrorMessage, setFeedbackTypeErrorMessage] = useState<string | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState<ChargerFeedbackFormState>(initialFeedbackForm);
+  const [feedbackFormErrors, setFeedbackFormErrors] = useState<ChargerFeedbackFormErrors>({});
+  const [feedbackSuccessMessage, setFeedbackSuccessMessage] = useState<string | null>(null);
+  const [feedbackErrorMessage, setFeedbackErrorMessage] = useState<string | null>(null);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [approvedFeedbackPage, setApprovedFeedbackPage] = useState<ApprovedFeedbackPageState>(
+    emptyApprovedFeedbackPage(),
+  );
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -162,6 +245,161 @@ export default function ChargerDetail() {
       isCurrentRequest = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!id) {
+      setApprovedFeedbackPage(emptyApprovedFeedbackPage());
+      return;
+    }
+
+    void loadApprovedFeedback(0, id);
+  }, [id]);
+
+  useEffect(() => {
+    let isCurrentRequest = true;
+
+    setFeedbackTypeErrorMessage(null);
+
+    chargerFeedbackApi
+      .getFeedbackTypes()
+      .then((feedbackTypeResponse) => {
+        if (!isCurrentRequest) {
+          return;
+        }
+
+        if (!Array.isArray(feedbackTypeResponse)) {
+          throw new Error('Charger feedback type response was not a list.');
+        }
+
+        setFeedbackTypes(
+          feedbackTypeResponse
+            .map((feedbackType) => normalizeFeedbackTypeOption(feedbackType))
+            .filter((feedbackType): feedbackType is ChargerFeedbackTypeOption =>
+              Boolean(feedbackType),
+            ),
+        );
+      })
+      .catch((error: unknown) => {
+        if (!isCurrentRequest) {
+          return;
+        }
+
+        setFeedbackTypes([]);
+        setFeedbackTypeErrorMessage(getErrorMessage(error));
+      });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, []);
+
+  function updateFeedbackField<Key extends keyof ChargerFeedbackFormState>(
+    key: Key,
+    value: ChargerFeedbackFormState[Key],
+  ) {
+    setFeedbackForm((currentForm) => ({
+      ...currentForm,
+      [key]: value,
+    }));
+
+    setFeedbackFormErrors((currentErrors) => ({
+      ...currentErrors,
+      [key]: undefined,
+    }));
+    setFeedbackSuccessMessage(null);
+    setFeedbackErrorMessage(null);
+  }
+
+  function handleFeedbackSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!id) {
+      setFeedbackErrorMessage('Charger ID was not available for feedback submission.');
+      return;
+    }
+
+    const nextErrors: ChargerFeedbackFormErrors = {};
+    const rating = feedbackForm.rating ? Number(feedbackForm.rating) : undefined;
+
+    if (
+      feedbackForm.rating &&
+      (rating === undefined || !Number.isInteger(rating) || rating < 1 || rating > 5)
+    ) {
+      nextErrors.rating = 'Choose a rating from 1 to 5, or leave it blank.';
+    }
+
+    if (!feedbackForm.feedbackType) {
+      nextErrors.feedbackType = 'Choose the kind of charger feedback you are sharing.';
+    }
+
+    setFeedbackFormErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    setFeedbackErrorMessage(null);
+    setFeedbackSuccessMessage(null);
+
+    const feedbackSubmission: ChargerFeedbackSubmission = {
+      feedbackType: feedbackForm.feedbackType,
+      ...(rating !== undefined ? { rating } : {}),
+      ...optionalPayloadField('message', feedbackForm.message),
+      ...optionalPayloadField('displayName', feedbackForm.displayName),
+      ...optionalPayloadField('city', feedbackForm.city),
+      ...optionalPayloadField('reportedByContact', feedbackForm.reportedByContact),
+    };
+
+    chargerFeedbackApi
+      .submitFeedback(id, feedbackSubmission)
+      .then((response) => {
+        const responseMessage = isMeaningfulString(response.message)
+          ? response.message.trim()
+          : 'Feedback submitted for review.';
+        setFeedbackSuccessMessage(
+          `${responseMessage} It is not public yet and does not update live charger availability or reported status.`,
+        );
+        setFeedbackForm(initialFeedbackForm);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError) {
+          setFeedbackFormErrors(getFieldErrorMap(error.response.fieldErrors));
+        }
+        setFeedbackErrorMessage(getErrorMessage(error));
+      })
+      .finally(() => {
+        setIsSubmittingFeedback(false);
+      });
+  }
+
+  async function loadApprovedFeedback(page: number, chargerId = id) {
+    if (!chargerId) {
+      return;
+    }
+
+    setApprovedFeedbackPage((currentPage) => ({
+      ...currentPage,
+      page,
+      isLoading: true,
+      errorMessage: null,
+    }));
+
+    try {
+      const feedbackResponse = await chargerFeedbackApi.getApprovedFeedback(
+        chargerId,
+        page,
+        approvedFeedbackPageSize,
+      );
+      setApprovedFeedbackPage(normalizeApprovedFeedbackPage(feedbackResponse, page));
+    } catch (error: unknown) {
+      setApprovedFeedbackPage((currentPage) => ({
+        ...currentPage,
+        isLoading: false,
+        errorMessage: getErrorMessage(error),
+      }));
+    }
+  }
 
   const mapLink = charger ? buildMapsLink(charger.latitude, charger.longitude) : null;
   const backLink = (
@@ -258,6 +496,184 @@ export default function ChargerDetail() {
                 </div>
               ) : null}
             </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-950">Share charger feedback</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Submitted feedback is reviewed before any public display. It is not live charger
+                  availability and does not confirm that the charger is working, accessible,
+                  unoccupied, compatible with your vehicle, or priced as shown.
+                </p>
+              </div>
+
+              {feedbackTypeErrorMessage ? (
+                <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Charger feedback options could not be loaded right now. Please try again later.
+                </div>
+              ) : null}
+
+              <form className="mt-5 space-y-4" onSubmit={handleFeedbackSubmit}>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="text-sm font-medium text-slate-800">
+                    User experience rating{' '}
+                    <span className="font-normal text-slate-500">(optional)</span>
+                    <select
+                      className={inputClass}
+                      value={feedbackForm.rating}
+                      onChange={(event) => updateFeedbackField('rating', event.target.value)}
+                    >
+                      <option value="">No experience rating</option>
+                      <option value="1">1 - Very poor</option>
+                      <option value="2">2 - Poor</option>
+                      <option value="3">3 - Okay</option>
+                      <option value="4">4 - Good</option>
+                      <option value="5">5 - Excellent</option>
+                    </select>
+                    <FieldError message={feedbackFormErrors.rating} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800">
+                    Feedback type
+                    <select
+                      className={inputClass}
+                      value={feedbackForm.feedbackType}
+                      disabled={feedbackTypes.length === 0}
+                      onChange={(event) => updateFeedbackField('feedbackType', event.target.value)}
+                    >
+                      <option value="">Choose one</option>
+                      {feedbackTypes.map((feedbackType) => (
+                        <option key={feedbackType.value} value={feedbackType.value}>
+                          {feedbackType.label}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError message={feedbackFormErrors.feedbackType} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800">
+                    Display name <span className="font-normal text-slate-500">(optional)</span>
+                    <input
+                      className={inputClass}
+                      type="text"
+                      value={feedbackForm.displayName}
+                      onChange={(event) => updateFeedbackField('displayName', event.target.value)}
+                    />
+                    <FieldError message={feedbackFormErrors.displayName} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800">
+                    City <span className="font-normal text-slate-500">(optional)</span>
+                    <input
+                      className={inputClass}
+                      type="text"
+                      value={feedbackForm.city}
+                      onChange={(event) => updateFeedbackField('city', event.target.value)}
+                    />
+                    <FieldError message={feedbackFormErrors.city} />
+                  </label>
+
+                  <label className="text-sm font-medium text-slate-800 md:col-span-2">
+                    Contact for internal follow-up only{' '}
+                    <span className="font-normal text-slate-500">(optional)</span>
+                    <input
+                      className={inputClass}
+                      type="text"
+                      value={feedbackForm.reportedByContact}
+                      onChange={(event) =>
+                        updateFeedbackField('reportedByContact', event.target.value)
+                      }
+                    />
+                    <FieldError message={feedbackFormErrors.reportedByContact} />
+                  </label>
+                </div>
+
+                <label className="block text-sm font-medium text-slate-800">
+                  Message <span className="font-normal text-slate-500">(optional)</span>
+                  <textarea
+                    className={`${inputClass} min-h-28 resize-y`}
+                    value={feedbackForm.message}
+                    onChange={(event) => updateFeedbackField('message', event.target.value)}
+                  />
+                  <FieldError message={feedbackFormErrors.message} />
+                </label>
+
+                {feedbackSuccessMessage ? (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
+                    {feedbackSuccessMessage}
+                  </div>
+                ) : null}
+
+                {feedbackErrorMessage ? (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                    {feedbackErrorMessage}
+                  </div>
+                ) : null}
+
+                <button
+                  className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  type="submit"
+                  disabled={isSubmittingFeedback || feedbackTypes.length === 0}
+                >
+                  {isSubmittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </form>
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-950">Community feedback</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Approved user feedback is reviewed before display. This feedback is
+                  user-submitted and is not live charger availability. It does not confirm the
+                  charger is working right now, accessible, unoccupied, compatible with your
+                  vehicle, or priced as shown. Verify charger details before travel.
+                </p>
+              </div>
+
+              {approvedFeedbackPage.isLoading ? (
+                <StateMessage>Loading approved user feedback...</StateMessage>
+              ) : approvedFeedbackPage.errorMessage ? (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                  <p className="font-semibold">Approved user feedback could not be loaded.</p>
+                  <p className="mt-1">{approvedFeedbackPage.errorMessage}</p>
+                </div>
+              ) : approvedFeedbackPage.feedback.length > 0 ? (
+                <div className="mt-5 space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {approvedFeedbackPage.feedback.map((feedback, index) => (
+                      <ApprovedFeedbackCard key={feedback.id ?? index} feedback={feedback} />
+                    ))}
+                  </div>
+                  {shouldShowFeedbackPagination(approvedFeedbackPage) ? (
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={approvedFeedbackPage.isLoading || approvedFeedbackPage.page <= 0}
+                        onClick={() => void loadApprovedFeedback(approvedFeedbackPage.page - 1)}
+                        type="button"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-slate-500">Page {approvedFeedbackPage.page + 1}</span>
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={!hasNextFeedbackPage(approvedFeedbackPage)}
+                        onClick={() => void loadApprovedFeedback(approvedFeedbackPage.page + 1)}
+                        type="button"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  No approved user feedback yet. This does not indicate live charger availability
+                  or reliability.
+                </div>
+              )}
+            </section>
           </>
         ) : (
           <StateMessage>Charger details are not available right now.</StateMessage>
@@ -287,6 +703,110 @@ function StateMessage({ children }: { children: string }) {
       {children}
     </div>
   );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) {
+    return null;
+  }
+
+  return <span className="mt-2 block text-xs font-normal text-red-700">{message}</span>;
+}
+
+function ApprovedFeedbackCard({ feedback }: { feedback: PublicChargerFeedback }) {
+  const createdDate = formatDate(feedback.createdAt);
+
+  return (
+    <article className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm leading-6">
+      <div className="flex flex-wrap items-center gap-2">
+        {feedback.rating !== null && feedback.rating !== undefined && feedback.rating !== '' ? (
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+            User experience {feedback.rating}/5
+          </span>
+        ) : null}
+        {isMeaningfulString(feedback.feedbackType) ? (
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+            {formatEnumLabel(feedback.feedbackType)}
+          </span>
+        ) : null}
+      </div>
+
+      {isMeaningfulString(feedback.message) ? (
+        <p className="mt-3 whitespace-pre-wrap text-slate-800">{feedback.message.trim()}</p>
+      ) : (
+        <p className="mt-3 text-slate-500">No message provided.</p>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+        <span>{formatText(feedback.displayName, 'EVReady user')}</span>
+        {isMeaningfulString(feedback.city) ? <span>{feedback.city.trim()}</span> : null}
+        {createdDate ? <span>{createdDate}</span> : null}
+      </div>
+    </article>
+  );
+}
+
+function shouldShowFeedbackPagination(feedbackPage: ApprovedFeedbackPageState) {
+  return feedbackPage.page > 0 || feedbackPage.feedback.length === approvedFeedbackPageSize;
+}
+
+function hasNextFeedbackPage(feedbackPage: ApprovedFeedbackPageState) {
+  if (typeof feedbackPage.totalPages === 'number') {
+    return feedbackPage.page + 1 < feedbackPage.totalPages;
+  }
+
+  return feedbackPage.feedback.length === approvedFeedbackPageSize;
+}
+
+function normalizeFeedbackTypeOption(
+  feedbackType: ChargerFeedbackTypeOption,
+): ChargerFeedbackTypeOption | null {
+  if (!isMeaningfulString(feedbackType.value) || !isMeaningfulString(feedbackType.label)) {
+    return null;
+  }
+
+  return {
+    ...feedbackType,
+    value: feedbackType.value.trim(),
+    label: feedbackType.label.trim(),
+  };
+}
+
+function getFieldErrorMap(fieldErrors: BackendFieldErrors | undefined): ChargerFeedbackFormErrors {
+  if (!fieldErrors) {
+    return {};
+  }
+
+  const nextErrors: ChargerFeedbackFormErrors = {};
+
+  if (Array.isArray(fieldErrors)) {
+    fieldErrors.forEach((fieldError) => {
+      addFieldError(nextErrors, fieldError.field, fieldError.message);
+    });
+    return nextErrors;
+  }
+
+  Object.entries(fieldErrors).forEach(([field, message]) => {
+    addFieldError(nextErrors, field, message);
+  });
+
+  return nextErrors;
+}
+
+function addFieldError(
+  errors: ChargerFeedbackFormErrors,
+  field: string,
+  message: string | undefined,
+) {
+  if (!isFeedbackField(field) || !isMeaningfulString(message)) {
+    return;
+  }
+
+  errors[field] = message;
+}
+
+function isFeedbackField(field: string): field is keyof ChargerFeedbackFormState {
+  return field in initialFeedbackForm;
 }
 
 function getChargerTypeName(charger: ChargerDetailRecord) {
@@ -319,6 +839,19 @@ function isMeaningfulString(value: unknown): value is string {
 
 function formatText(value: unknown, fallback: string) {
   return isMeaningfulString(value) ? value.trim() : fallback;
+}
+
+function trimOptionalValue(value: string) {
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+function optionalPayloadField<Key extends keyof ChargerFeedbackSubmission>(
+  key: Key,
+  value: string,
+) {
+  const trimmedValue = trimOptionalValue(value);
+  return trimmedValue ? { [key]: trimmedValue } : {};
 }
 
 function formatPower(powerKw: ChargerDetailRecord['powerKw']) {

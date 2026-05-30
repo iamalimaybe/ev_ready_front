@@ -90,13 +90,12 @@ Combines daily range, home charging access, city support, savings, solar availab
 
 ### Expanded Admin and Data-Management Planning
 
-The frontend now has a minimal protected read-only Admin UI for lead and contact visibility. The
-next backend-facing direction is planning how vehicle, charger, lead, and contact data should be
-managed safely beyond that read-only view.
+The frontend now has a protected Admin UI for lead/contact visibility and status updates, vehicle
+review moderation, charger feedback moderation, and charger directory record management.
 
 Scope:
 
-- Plan expanded admin/data-management responsibilities in the backend repo and docs.
+- Keep expanded admin/data-management responsibilities focused and protected.
 - Keep public frontend calculators frontend-side where users manually enter assumptions.
 - Do not expand the Admin UI into payments, bookings, dealer-management, ratings, reviews, or
   public user accounts as part of this planning step.
@@ -122,6 +121,9 @@ reviews are stored as pending and are not published immediately.
 
 The protected admin dashboard can moderate submitted vehicle reviews for later public display.
 Approval does not mean EVReady has verified the user's claim.
+
+The protected admin dashboard can also moderate submitted charger feedback. Charger feedback
+moderation must not update public charger status or imply live charger availability.
 
 Approved-only vehicle rating aggregates are shown on vehicle cards and vehicle detail pages when
 approved ratings exist. Vehicle detail pages also show approved public reviews returned by the
@@ -156,7 +158,8 @@ Dedicated vehicle detail pages at `/vehicles/:id` are the chosen direction for d
 
 Vehicle cards and detail pages may show approved-only rating aggregates from the backend. Unrated
 vehicles should use conservative wording such as be the first to review instead of fake ratings.
-Catalog browsing uses a simple load-more pattern so filters remain lightweight on mobile.
+Catalog browsing uses backend pagination with scroll-based next-page loading so the initial view
+stays lightweight on mobile without fetching every matching vehicle at once.
 
 ### Charger Directory
 
@@ -167,10 +170,20 @@ First release must not claim live charger status unless the backend has a reliab
 
 Charger API responses are expected to include `verificationStatus`, separate from operational `status`, and directory cards should show small source-confidence badges while still asking users to verify charger details before travel.
 
-Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability, and modal-based feedback/review display remains deferred.
+Dedicated charger detail pages at `/chargers/:id` are the chosen direction for deeper charger information. Charger status must continue to be framed as reported data, not live availability.
 
-Directory browsing uses a simple load-more pattern. Charger reviews, feedback, ratings, and live
-availability remain deferred.
+The protected Admin Dashboard can create and edit charger directory records through backend admin
+APIs. Admin charger management must label status as reported/non-live where practical and treat
+`verificationStatus` as source confidence, not EVReady field verification.
+
+Charger detail pages can accept public charger feedback submissions through the backend. Submitted
+feedback is stored as pending and is not shown publicly unless approved through moderation.
+Approved public feedback may be shown on charger detail pages, but it must remain separate from
+public charger status and must not imply live availability, access, compatibility, occupancy, or
+pricing.
+
+Directory browsing uses backend pagination with scroll-based next-page loading. Charger rating
+aggregates, charger-directory feedback summaries, and live availability remain deferred.
 
 ### Guides and Content
 
