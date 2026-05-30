@@ -108,8 +108,45 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   type options and submission APIs, without public feedback display or charger status updates.
 - Admin Dashboard now includes protected charger feedback moderation with backend-provided status
   options, pending-first filtering, and no public charger status updates.
+- Charger Detail now shows approved-only public charger feedback from the backend without rating
+  aggregates, directory-card changes, or live availability implications.
+- Charger feedback wording now consistently frames submission, moderation, and approved public
+  display as user-submitted feedback, separate from live charger availability or public charger
+  status.
 
 ## Completed
+
+### 2026-05-30 - Charger Feedback UX Safety Wording Cleanup
+
+Tightened charger feedback wording on Charger Detail and Admin Dashboard. Submission helper text,
+success copy, optional user-experience rating labels, approved-feedback loading/error/empty states,
+approved feedback cards, and admin moderation warnings now more clearly separate user-submitted
+feedback from public charger status, live availability, access, occupancy, compatibility, and
+pricing. No behavior, backend paths, rating aggregates, listing cards, or public feedback exposure
+rules were changed.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
+
+### 2026-05-30 - Approved Charger Feedback Display
+
+Added approved-only public charger feedback display to Charger Detail. The page now loads
+`GET /api/v1/chargers/{chargerId}/feedback?page=0&size=10`, shows loading, error, empty, and
+normal states, renders only safe public feedback fields, and provides simple Previous/Next
+pagination when backend paging indicates more results. Feedback display remains separate from
+reported charger status and does not add rating aggregates, directory-card changes, fake feedback,
+or live availability claims.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/utils/api.ts`
 
 ### 2026-05-30 - Admin Charger Feedback Moderation UI
 

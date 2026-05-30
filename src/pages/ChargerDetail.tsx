@@ -8,6 +8,8 @@ import {
   type BackendFieldErrors,
   type ChargerFeedbackSubmission,
   type ChargerFeedbackTypeOption,
+  type PageResponse,
+  type PublicChargerFeedback,
 } from '../utils/api';
 
 type ChargingType = 'AC' | 'DC' | 'AC_DC';
@@ -61,6 +63,15 @@ type ChargerFeedbackFormState = {
 
 type ChargerFeedbackFormErrors = Partial<Record<keyof ChargerFeedbackFormState, string>>;
 
+type ApprovedFeedbackPageState = {
+  feedback: PublicChargerFeedback[];
+  page: number;
+  totalPages?: number;
+  totalElements?: number;
+  isLoading: boolean;
+  errorMessage: string | null;
+};
+
 const verificationStatusLabels: Record<ChargerVerificationStatus, string> = {
   OFFICIAL: 'Operator source-backed',
   DEALER_CONFIRMED: 'Provider source-backed',
@@ -92,6 +103,15 @@ const initialFeedbackForm: ChargerFeedbackFormState = {
 
 const inputClass =
   'mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100';
+
+const approvedFeedbackPageSize = 10;
+
+const emptyApprovedFeedbackPage = (page = 0): ApprovedFeedbackPageState => ({
+  feedback: [],
+  page,
+  isLoading: false,
+  errorMessage: null,
+});
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -132,6 +152,29 @@ function normalizeChargerDetail(charger: BackendChargerDetail): ChargerDetailRec
   };
 }
 
+function normalizeApprovedFeedbackPage(
+  payload: PageResponse<PublicChargerFeedback> | PublicChargerFeedback[],
+  fallbackPage: number,
+): ApprovedFeedbackPageState {
+  if (Array.isArray(payload)) {
+    return {
+      feedback: payload,
+      page: fallbackPage,
+      isLoading: false,
+      errorMessage: null,
+    };
+  }
+
+  return {
+    feedback: Array.isArray(payload.content) ? payload.content : [],
+    page: typeof payload.number === 'number' ? payload.number : payload.page ?? fallbackPage,
+    totalPages: payload.totalPages,
+    totalElements: payload.totalElements,
+    isLoading: false,
+    errorMessage: null,
+  };
+}
+
 export default function ChargerDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -146,6 +189,9 @@ export default function ChargerDetail() {
   const [feedbackSuccessMessage, setFeedbackSuccessMessage] = useState<string | null>(null);
   const [feedbackErrorMessage, setFeedbackErrorMessage] = useState<string | null>(null);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [approvedFeedbackPage, setApprovedFeedbackPage] = useState<ApprovedFeedbackPageState>(
+    emptyApprovedFeedbackPage(),
+  );
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -198,6 +244,15 @@ export default function ChargerDetail() {
     return () => {
       isCurrentRequest = false;
     };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) {
+      setApprovedFeedbackPage(emptyApprovedFeedbackPage());
+      return;
+    }
+
+    void loadApprovedFeedback(0, id);
   }, [id]);
 
   useEffect(() => {
@@ -299,10 +354,11 @@ export default function ChargerDetail() {
     chargerFeedbackApi
       .submitFeedback(id, feedbackSubmission)
       .then((response) => {
+        const responseMessage = isMeaningfulString(response.message)
+          ? response.message.trim()
+          : 'Feedback submitted for review.';
         setFeedbackSuccessMessage(
-          isMeaningfulString(response.message)
-            ? response.message.trim()
-            : 'Feedback submitted for review. It is not public and will not change charger status.',
+          `${responseMessage} It is not public yet and does not update live charger availability or reported status.`,
         );
         setFeedbackForm(initialFeedbackForm);
       })
@@ -315,6 +371,34 @@ export default function ChargerDetail() {
       .finally(() => {
         setIsSubmittingFeedback(false);
       });
+  }
+
+  async function loadApprovedFeedback(page: number, chargerId = id) {
+    if (!chargerId) {
+      return;
+    }
+
+    setApprovedFeedbackPage((currentPage) => ({
+      ...currentPage,
+      page,
+      isLoading: true,
+      errorMessage: null,
+    }));
+
+    try {
+      const feedbackResponse = await chargerFeedbackApi.getApprovedFeedback(
+        chargerId,
+        page,
+        approvedFeedbackPageSize,
+      );
+      setApprovedFeedbackPage(normalizeApprovedFeedbackPage(feedbackResponse, page));
+    } catch (error: unknown) {
+      setApprovedFeedbackPage((currentPage) => ({
+        ...currentPage,
+        isLoading: false,
+        errorMessage: getErrorMessage(error),
+      }));
+    }
   }
 
   const mapLink = charger ? buildMapsLink(charger.latitude, charger.longitude) : null;
@@ -417,9 +501,9 @@ export default function ChargerDetail() {
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-slate-950">Share charger feedback</h2>
                 <p className="text-sm leading-6 text-slate-600">
-                  Feedback is submitted for EVReady review and is not shown publicly yet. It does
-                  not update this charger's reported status or confirm live availability, access,
-                  compatibility, occupancy, or pricing.
+                  Submitted feedback is reviewed before any public display. It is not live charger
+                  availability and does not confirm that the charger is working, accessible,
+                  unoccupied, compatible with your vehicle, or priced as shown.
                 </p>
               </div>
 
@@ -432,13 +516,14 @@ export default function ChargerDetail() {
               <form className="mt-5 space-y-4" onSubmit={handleFeedbackSubmit}>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="text-sm font-medium text-slate-800">
-                    Rating <span className="font-normal text-slate-500">(optional)</span>
+                    User experience rating{' '}
+                    <span className="font-normal text-slate-500">(optional)</span>
                     <select
                       className={inputClass}
                       value={feedbackForm.rating}
                       onChange={(event) => updateFeedbackField('rating', event.target.value)}
                     >
-                      <option value="">No rating</option>
+                      <option value="">No experience rating</option>
                       <option value="1">1 - Very poor</option>
                       <option value="2">2 - Poor</option>
                       <option value="3">3 - Okay</option>
@@ -534,6 +619,61 @@ export default function ChargerDetail() {
                 </button>
               </form>
             </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-950">Community feedback</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Approved user feedback is reviewed before display. This feedback is
+                  user-submitted and is not live charger availability. It does not confirm the
+                  charger is working right now, accessible, unoccupied, compatible with your
+                  vehicle, or priced as shown. Verify charger details before travel.
+                </p>
+              </div>
+
+              {approvedFeedbackPage.isLoading ? (
+                <StateMessage>Loading approved user feedback...</StateMessage>
+              ) : approvedFeedbackPage.errorMessage ? (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                  <p className="font-semibold">Approved user feedback could not be loaded.</p>
+                  <p className="mt-1">{approvedFeedbackPage.errorMessage}</p>
+                </div>
+              ) : approvedFeedbackPage.feedback.length > 0 ? (
+                <div className="mt-5 space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {approvedFeedbackPage.feedback.map((feedback, index) => (
+                      <ApprovedFeedbackCard key={feedback.id ?? index} feedback={feedback} />
+                    ))}
+                  </div>
+                  {shouldShowFeedbackPagination(approvedFeedbackPage) ? (
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={approvedFeedbackPage.isLoading || approvedFeedbackPage.page <= 0}
+                        onClick={() => void loadApprovedFeedback(approvedFeedbackPage.page - 1)}
+                        type="button"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-slate-500">Page {approvedFeedbackPage.page + 1}</span>
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={!hasNextFeedbackPage(approvedFeedbackPage)}
+                        onClick={() => void loadApprovedFeedback(approvedFeedbackPage.page + 1)}
+                        type="button"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  No approved user feedback yet. This does not indicate live charger availability
+                  or reliability.
+                </div>
+              )}
+            </section>
           </>
         ) : (
           <StateMessage>Charger details are not available right now.</StateMessage>
@@ -571,6 +711,51 @@ function FieldError({ message }: { message?: string }) {
   }
 
   return <span className="mt-2 block text-xs font-normal text-red-700">{message}</span>;
+}
+
+function ApprovedFeedbackCard({ feedback }: { feedback: PublicChargerFeedback }) {
+  const createdDate = formatDate(feedback.createdAt);
+
+  return (
+    <article className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm leading-6">
+      <div className="flex flex-wrap items-center gap-2">
+        {feedback.rating !== null && feedback.rating !== undefined && feedback.rating !== '' ? (
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+            User experience {feedback.rating}/5
+          </span>
+        ) : null}
+        {isMeaningfulString(feedback.feedbackType) ? (
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+            {formatEnumLabel(feedback.feedbackType)}
+          </span>
+        ) : null}
+      </div>
+
+      {isMeaningfulString(feedback.message) ? (
+        <p className="mt-3 whitespace-pre-wrap text-slate-800">{feedback.message.trim()}</p>
+      ) : (
+        <p className="mt-3 text-slate-500">No message provided.</p>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+        <span>{formatText(feedback.displayName, 'EVReady user')}</span>
+        {isMeaningfulString(feedback.city) ? <span>{feedback.city.trim()}</span> : null}
+        {createdDate ? <span>{createdDate}</span> : null}
+      </div>
+    </article>
+  );
+}
+
+function shouldShowFeedbackPagination(feedbackPage: ApprovedFeedbackPageState) {
+  return feedbackPage.page > 0 || feedbackPage.feedback.length === approvedFeedbackPageSize;
+}
+
+function hasNextFeedbackPage(feedbackPage: ApprovedFeedbackPageState) {
+  if (typeof feedbackPage.totalPages === 'number') {
+    return feedbackPage.page + 1 < feedbackPage.totalPages;
+  }
+
+  return feedbackPage.feedback.length === approvedFeedbackPageSize;
 }
 
 function normalizeFeedbackTypeOption(

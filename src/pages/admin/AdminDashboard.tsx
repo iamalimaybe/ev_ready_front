@@ -581,7 +581,7 @@ const AdminDashboard = () => {
         `Charger feedback ${updatedFeedback.id} status updated to ${formatStatusLabel(
           updatedFeedback.feedbackStatus,
           chargerFeedbackStatusOptions,
-        )}. Charger status was not changed.`,
+        )}. Public charger status and live availability were not changed.`,
       );
     } catch {
       setStatusError('Charger feedback status could not be updated. Please try again.');
@@ -762,7 +762,7 @@ const AdminDashboard = () => {
           onClick={() => setActiveSection('chargerFeedback')}
           type="button"
         >
-          Charger Feedback
+          Charger User Feedback
         </button>
       </div>
 
@@ -1155,13 +1155,14 @@ const AdminDashboard = () => {
         <section className="flex flex-col gap-4">
           <AdminSectionHeader
             count={chargerFeedbackPage.totalElements}
-            title="Charger Feedback Moderation"
+            title="Charger User Feedback Moderation"
             onRefresh={() => void loadChargerFeedback(chargerFeedbackPage.page)}
           />
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            Moderate charger feedback carefully. Status updates here do not change public charger
-            status and must not be treated as live availability, access, occupancy, compatibility,
-            or pricing confirmation.
+            Moderate charger feedback carefully. Feedback status controls whether user-submitted
+            feedback can be displayed; it does not change public charger status and must not be
+            treated as live availability, working condition, access, occupancy, compatibility, or
+            pricing confirmation.
           </div>
           <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-3">
             <label className="text-sm font-semibold text-slate-700">
@@ -1211,7 +1212,7 @@ const AdminDashboard = () => {
                   <th className="px-4 py-3">ID</th>
                   <th className="px-4 py-3">Charger ID</th>
                   <th className="px-4 py-3">Charger</th>
-                  <th className="px-4 py-3">Rating</th>
+                  <th className="px-4 py-3">User experience</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Message</th>
                   <th className="px-4 py-3">Display name</th>
