@@ -123,6 +123,9 @@ reviews are stored as pending and are not published immediately.
 The protected admin dashboard can moderate submitted vehicle reviews for later public display.
 Approval does not mean EVReady has verified the user's claim.
 
+The protected admin dashboard can also moderate submitted charger feedback. Charger feedback
+moderation must not update public charger status or imply live charger availability.
+
 Approved-only vehicle rating aggregates are shown on vehicle cards and vehicle detail pages when
 approved ratings exist. Vehicle detail pages also show approved public reviews returned by the
 backend. Pending, rejected, and spam reviews must not be shown publicly.

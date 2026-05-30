@@ -9,6 +9,13 @@ type VehicleReviewListParams = {
   vehicleId?: string;
 };
 
+type ChargerFeedbackListParams = {
+  page?: number;
+  size?: number;
+  feedbackStatus?: string;
+  chargerId?: string;
+};
+
 const buildAdminUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
@@ -110,4 +117,25 @@ export const adminApiClient = {
       reviewStatus,
       moderationReason,
     }),
+  listChargerFeedback: <T>({ page = 0, size = 20, feedbackStatus, chargerId }: ChargerFeedbackListParams = {}) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+    });
+
+    if (feedbackStatus) {
+      params.set('feedbackStatus', feedbackStatus);
+    }
+
+    if (chargerId) {
+      params.set('chargerId', chargerId);
+    }
+
+    return request<T>('GET', `/api/v1/admin/charger-feedback?${params.toString()}`);
+  },
+  getChargerFeedbackStatusOptions: <T>() => request<T>('GET', '/api/v1/admin/charger-feedback/statuses'),
+  getChargerFeedback: <T>(feedbackId: number | string) =>
+    request<T>('GET', `/api/v1/admin/charger-feedback/${feedbackId}`),
+  updateChargerFeedbackStatus: <T>(feedbackId: number | string, feedbackStatus: string) =>
+    request<T>('PATCH', `/api/v1/admin/charger-feedback/${feedbackId}/status`, { feedbackStatus }),
 };

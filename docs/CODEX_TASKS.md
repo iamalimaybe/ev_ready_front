@@ -106,8 +106,26 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Public Home and listing UI now use `EV Catalogue` wording instead of `Vehicle Catalog`.
 - Charger Detail now includes a public pending-feedback form backed by backend charger feedback
   type options and submission APIs, without public feedback display or charger status updates.
+- Admin Dashboard now includes protected charger feedback moderation with backend-provided status
+  options, pending-first filtering, and no public charger status updates.
 
 ## Completed
+
+### 2026-05-30 - Admin Charger Feedback Moderation UI
+
+Added protected Admin Dashboard support for charger feedback moderation. Admin users can load
+paginated charger feedback, default to pending feedback, filter by backend-provided feedback status
+and optional charger ID, review submitted fields, and update feedback status through the
+session-cookie admin API. Successful updates replace the feedback row locally and show a safe
+message that charger status was not changed. Public charger feedback display, charger rating
+aggregates, fake feedback, and public charger status updates were not added.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-30 - Charger Detail Public Feedback Submission
 
