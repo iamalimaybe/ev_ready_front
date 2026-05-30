@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError } from '../../utils/api';
+import { ApiError, type BackendFieldErrors } from '../../utils/api';
 import { adminApiClient } from '../../utils/adminApi';
 
 type AdminSession = {
@@ -65,10 +65,73 @@ type ChargerFeedback = {
   moderatedBy?: string | null;
 };
 
+type AdminCharger = {
+  id: number | string;
+  chargerTypeId?: number | string | null;
+  chargerType?: {
+    id?: number | string | null;
+    name?: string | null;
+  } | null;
+  name?: string | null;
+  city?: string | null;
+  area?: string | null;
+  address?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  chargingType?: string | null;
+  status?: string | null;
+  powerKw?: number | string | null;
+  priceNote?: string | null;
+  description?: string | null;
+  image?: string | null;
+  sourceUrl?: string | null;
+  sourceLabel?: string | null;
+  sourceCheckedAt?: string | null;
+  verificationStatus?: string | null;
+  active?: boolean | string | null;
+  displayOrder?: number | string | null;
+};
+
 type StatusOption = {
   value: string;
   label: string;
 };
+
+type ChargerFormOption = {
+  value: string;
+  label: string;
+};
+
+type ChargerFormOptions = {
+  chargerTypes: ChargerFormOption[];
+  chargingTypes: ChargerFormOption[];
+  statuses: ChargerFormOption[];
+  verificationStatuses: ChargerFormOption[];
+};
+
+type ChargerFormState = {
+  chargerTypeId: string;
+  name: string;
+  city: string;
+  area: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+  chargingType: string;
+  status: string;
+  powerKw: string;
+  priceNote: string;
+  description: string;
+  image: string;
+  sourceUrl: string;
+  sourceLabel: string;
+  sourceCheckedAt: string;
+  verificationStatus: string;
+  active: boolean;
+  displayOrder: string;
+};
+
+type ChargerFormErrors = Partial<Record<keyof ChargerFormState, string>>;
 
 type PagePayload<T> = {
   content?: T[];
@@ -90,7 +153,7 @@ type PageState<T> = {
   error: string | null;
 };
 
-type AdminSection = 'leads' | 'contacts' | 'vehicleReviews' | 'chargerFeedback';
+type AdminSection = 'leads' | 'contacts' | 'vehicleReviews' | 'chargerFeedback' | 'chargers';
 
 type ModerationDraft = {
   reviewStatus: string;
@@ -98,6 +161,35 @@ type ModerationDraft = {
 };
 
 const PAGE_SIZE = 20;
+
+const initialChargerForm: ChargerFormState = {
+  chargerTypeId: '',
+  name: '',
+  city: '',
+  area: '',
+  address: '',
+  latitude: '',
+  longitude: '',
+  chargingType: '',
+  status: '',
+  powerKw: '',
+  priceNote: '',
+  description: '',
+  image: '',
+  sourceUrl: '',
+  sourceLabel: '',
+  sourceCheckedAt: '',
+  verificationStatus: '',
+  active: true,
+  displayOrder: '0',
+};
+
+const emptyChargerFormOptions: ChargerFormOptions = {
+  chargerTypes: [],
+  chargingTypes: [],
+  statuses: [],
+  verificationStatuses: [],
+};
 
 const emptyPage = <T,>(page = 0): PageState<T> => ({
   items: [],
@@ -171,6 +263,161 @@ const formatStatusLabel = (value: string | null | undefined, options: StatusOpti
   return value;
 };
 
+const getChargerTypeName = (charger: AdminCharger) => {
+  if (charger.chargerType?.name) {
+    return charger.chargerType.name;
+  }
+
+  return formatValue(charger.chargerTypeId);
+};
+
+const formatAreaAddress = (charger: AdminCharger) => {
+  const parts = [charger.area, charger.address].filter((value) => value !== null && value !== undefined && value !== '');
+  return parts.length > 0 ? parts.join(' - ') : 'Not listed';
+};
+
+const normalizeOption = (option: unknown): ChargerFormOption | null => {
+  if (!option || typeof option !== 'object') {
+    return null;
+  }
+
+  const candidate = option as Record<string, unknown>;
+  const rawValue = candidate.value ?? candidate.id ?? candidate.code;
+  const rawLabel = candidate.label ?? candidate.name ?? candidate.value ?? candidate.id ?? candidate.code;
+
+  if (rawValue === null || rawValue === undefined || rawLabel === null || rawLabel === undefined) {
+    return null;
+  }
+
+  return {
+    value: String(rawValue),
+    label: String(rawLabel),
+  };
+};
+
+const normalizeOptions = (options: unknown): ChargerFormOption[] =>
+  Array.isArray(options)
+    ? options.map((option) => normalizeOption(option)).filter((option): option is ChargerFormOption => Boolean(option))
+    : [];
+
+const normalizeChargerFormOptions = (payload: unknown): ChargerFormOptions => {
+  if (!payload || typeof payload !== 'object') {
+    return emptyChargerFormOptions;
+  }
+
+  const options = payload as Record<string, unknown>;
+
+  return {
+    chargerTypes: normalizeOptions(options.chargerTypes ?? options.chargerTypeOptions),
+    chargingTypes: normalizeOptions(options.chargingTypes ?? options.chargingTypeOptions),
+    statuses: normalizeOptions(options.statuses ?? options.statusOptions ?? options.chargerStatuses),
+    verificationStatuses: normalizeOptions(
+      options.verificationStatuses ?? options.verificationStatusOptions ?? options.sourceConfidenceOptions,
+    ),
+  };
+};
+
+const getChargerTypeId = (charger: AdminCharger) => charger.chargerTypeId ?? charger.chargerType?.id ?? '';
+
+const toDateInputValue = (value?: string | null) => {
+  if (!value) {
+    return '';
+  }
+
+  return value.slice(0, 10);
+};
+
+const chargerToForm = (charger: AdminCharger): ChargerFormState => ({
+  chargerTypeId: String(getChargerTypeId(charger)),
+  name: String(charger.name ?? ''),
+  city: String(charger.city ?? ''),
+  area: String(charger.area ?? ''),
+  address: String(charger.address ?? ''),
+  latitude: String(charger.latitude ?? ''),
+  longitude: String(charger.longitude ?? ''),
+  chargingType: String(charger.chargingType ?? ''),
+  status: String(charger.status ?? ''),
+  powerKw: String(charger.powerKw ?? ''),
+  priceNote: String(charger.priceNote ?? ''),
+  description: String(charger.description ?? ''),
+  image: String(charger.image ?? ''),
+  sourceUrl: String(charger.sourceUrl ?? ''),
+  sourceLabel: String(charger.sourceLabel ?? ''),
+  sourceCheckedAt: toDateInputValue(charger.sourceCheckedAt),
+  verificationStatus: String(charger.verificationStatus ?? ''),
+  active: charger.active === false || charger.active === 'false' ? false : true,
+  displayOrder: String(charger.displayOrder ?? '0'),
+});
+
+const trimOptional = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const optionalStringField = (key: string, value: string) => {
+  const trimmed = trimOptional(value);
+  return trimmed ? { [key]: trimmed } : {};
+};
+
+const optionalNumberField = (key: string, value: string) => {
+  const trimmed = trimOptional(value);
+  if (!trimmed) {
+    return {};
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? { [key]: parsed } : { [key]: trimmed };
+};
+
+const chargerFormToPayload = (form: ChargerFormState) => ({
+  ...optionalNumberField('chargerTypeId', form.chargerTypeId),
+  ...optionalStringField('name', form.name),
+  ...optionalStringField('city', form.city),
+  ...optionalStringField('area', form.area),
+  ...optionalStringField('address', form.address),
+  ...optionalNumberField('latitude', form.latitude),
+  ...optionalNumberField('longitude', form.longitude),
+  ...optionalStringField('chargingType', form.chargingType),
+  ...optionalStringField('status', form.status),
+  ...optionalNumberField('powerKw', form.powerKw),
+  ...optionalStringField('priceNote', form.priceNote),
+  ...optionalStringField('description', form.description),
+  ...optionalStringField('image', form.image),
+  ...optionalStringField('sourceUrl', form.sourceUrl),
+  ...optionalStringField('sourceLabel', form.sourceLabel),
+  ...optionalStringField('sourceCheckedAt', form.sourceCheckedAt),
+  ...optionalStringField('verificationStatus', form.verificationStatus),
+  active: form.active,
+  ...optionalNumberField('displayOrder', form.displayOrder),
+});
+
+const isChargerFormField = (field: string): field is keyof ChargerFormState => field in initialChargerForm;
+
+const getChargerFieldErrors = (fieldErrors: BackendFieldErrors | undefined): ChargerFormErrors => {
+  if (!fieldErrors) {
+    return {};
+  }
+
+  const nextErrors: ChargerFormErrors = {};
+
+  if (Array.isArray(fieldErrors)) {
+    fieldErrors.forEach((fieldError) => {
+      if (isChargerFormField(fieldError.field) && fieldError.message) {
+        nextErrors[fieldError.field] = fieldError.message;
+      }
+    });
+    return nextErrors;
+  }
+
+  Object.entries(fieldErrors).forEach(([field, message]) => {
+    if (isChargerFormField(field) && message) {
+      nextErrors[field] = message;
+    }
+  });
+
+  return nextErrors;
+};
+
 const hasNextPage = <T,>(pageState: PageState<T>) => {
   if (typeof pageState.totalPages === 'number') {
     return pageState.page + 1 < pageState.totalPages;
@@ -190,6 +437,7 @@ const AdminDashboard = () => {
   const [chargerFeedbackPage, setChargerFeedbackPage] = useState<PageState<ChargerFeedback>>(
     emptyPage<ChargerFeedback>(),
   );
+  const [chargerPage, setChargerPage] = useState<PageState<AdminCharger>>(emptyPage<AdminCharger>());
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -218,6 +466,21 @@ const AdminDashboard = () => {
   const [chargerFeedbackStatusFilter, setChargerFeedbackStatusFilter] = useState('PENDING');
   const [chargerFeedbackChargerIdFilter, setChargerFeedbackChargerIdFilter] = useState('');
   const [chargerFeedbackDrafts, setChargerFeedbackDrafts] = useState<Record<string, string>>({});
+  const [chargerFormOptions, setChargerFormOptions] = useState<ChargerFormOptions>(emptyChargerFormOptions);
+  const [isChargerFormOptionsLoading, setIsChargerFormOptionsLoading] = useState(false);
+  const [chargerFormOptionsError, setChargerFormOptionsError] = useState<string | null>(null);
+  const [chargerActiveFilter, setChargerActiveFilter] = useState('all');
+  const [chargerCityFilter, setChargerCityFilter] = useState('');
+  const [chargerStatusFilter, setChargerStatusFilter] = useState('all');
+  const [chargerVerificationStatusFilter, setChargerVerificationStatusFilter] = useState('all');
+  const [selectedCharger, setSelectedCharger] = useState<AdminCharger | null>(null);
+  const [chargerForm, setChargerForm] = useState<ChargerFormState>(initialChargerForm);
+  const [chargerFormErrors, setChargerFormErrors] = useState<ChargerFormErrors>({});
+  const [chargerFormMode, setChargerFormMode] = useState<'create' | 'edit'>('create');
+  const [chargerFormMessage, setChargerFormMessage] = useState<string | null>(null);
+  const [chargerFormError, setChargerFormError] = useState<string | null>(null);
+  const [isChargerDetailLoading, setIsChargerDetailLoading] = useState(false);
+  const [isSavingCharger, setIsSavingCharger] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -338,6 +601,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadChargers = async (
+    page: number,
+    active = chargerActiveFilter,
+    city = chargerCityFilter,
+    status = chargerStatusFilter,
+    verificationStatus = chargerVerificationStatusFilter,
+  ) => {
+    setChargerPage((current) => ({ ...current, page, isLoading: true, error: null }));
+
+    try {
+      const payload = await adminApiClient.listChargers<PagePayload<AdminCharger> | AdminCharger[]>({
+        page,
+        size: PAGE_SIZE,
+        active: active === 'all' ? undefined : active,
+        city: city.trim() || undefined,
+        status: status === 'all' ? undefined : status,
+        verificationStatus: verificationStatus === 'all' ? undefined : verificationStatus,
+      });
+      setChargerPage(normalizePage(payload, page));
+    } catch (error) {
+      setChargerPage((current) => ({ ...current, isLoading: false, error: getAdminErrorMessage(error) }));
+    }
+  };
+
   const loadLeadStatusOptions = async () => {
     setIsLeadStatusOptionsLoading(true);
     setLeadStatusOptionsError(null);
@@ -436,16 +723,43 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadChargerFormOptions = async () => {
+    setIsChargerFormOptionsLoading(true);
+    setChargerFormOptionsError(null);
+
+    try {
+      const options = await adminApiClient.getChargerFormOptions<unknown>();
+      const nextOptions = normalizeChargerFormOptions(options);
+      setChargerFormOptions(nextOptions);
+
+      if (
+        nextOptions.chargerTypes.length === 0 ||
+        nextOptions.chargingTypes.length === 0 ||
+        nextOptions.statuses.length === 0 ||
+        nextOptions.verificationStatuses.length === 0
+      ) {
+        setChargerFormOptionsError('Charger form options are incomplete. Create and edit are disabled for now.');
+      }
+    } catch {
+      setChargerFormOptions(emptyChargerFormOptions);
+      setChargerFormOptionsError('Charger form options could not be loaded. Create and edit are disabled for now.');
+    } finally {
+      setIsChargerFormOptionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (authState === 'authenticated') {
       void loadLeadStatusOptions();
       void loadContactStatusOptions();
       void loadVehicleReviewStatusOptions();
       void loadChargerFeedbackStatusOptions();
+      void loadChargerFormOptions();
       void loadLeads(0);
       void loadContacts(0);
       void loadVehicleReviews(0);
       void loadChargerFeedback(0);
+      void loadChargers(0);
     }
   }, [authState]);
 
@@ -476,6 +790,102 @@ const AdminDashboard = () => {
 
   const handleChargerFeedbackChargerIdFilterSubmit = () => {
     void loadChargerFeedback(0, chargerFeedbackStatusFilter, chargerFeedbackChargerIdFilter);
+  };
+
+  const handleChargerFiltersApply = () => {
+    void loadChargers(
+      0,
+      chargerActiveFilter,
+      chargerCityFilter,
+      chargerStatusFilter,
+      chargerVerificationStatusFilter,
+    );
+  };
+
+  const startCreateCharger = () => {
+    setSelectedCharger(null);
+    setChargerForm(initialChargerForm);
+    setChargerFormErrors({});
+    setChargerFormMode('create');
+    setChargerFormMessage(null);
+    setChargerFormError(null);
+  };
+
+  const handleSelectCharger = async (charger: AdminCharger) => {
+    setChargerFormMode('edit');
+    setSelectedCharger(charger);
+    setChargerForm(chargerToForm(charger));
+    setChargerFormErrors({});
+    setChargerFormMessage(null);
+    setChargerFormError(null);
+    setIsChargerDetailLoading(true);
+
+    try {
+      const detail = await adminApiClient.getCharger<AdminCharger>(charger.id);
+      setSelectedCharger(detail);
+      setChargerForm(chargerToForm(detail));
+    } catch {
+      setChargerFormError('Full charger details could not be loaded. The list values are shown for editing.');
+    } finally {
+      setIsChargerDetailLoading(false);
+    }
+  };
+
+  const updateChargerForm = <Key extends keyof ChargerFormState>(key: Key, value: ChargerFormState[Key]) => {
+    setChargerForm((current) => ({ ...current, [key]: value }));
+    setChargerFormErrors((current) => ({ ...current, [key]: undefined }));
+    setChargerFormMessage(null);
+    setChargerFormError(null);
+  };
+
+  const handleChargerSave = async () => {
+    if (chargerFormOptionsError || isChargerFormOptionsLoading) {
+      setChargerFormError('Charger form options are not available yet.');
+      return;
+    }
+
+    if (chargerFormMode === 'edit' && !selectedCharger) {
+      setChargerFormError('Select a charger before saving changes.');
+      return;
+    }
+
+    setIsSavingCharger(true);
+    setChargerFormMessage(null);
+    setChargerFormError(null);
+    setChargerFormErrors({});
+
+    try {
+      const payload = chargerFormToPayload(chargerForm);
+      const savedCharger =
+        chargerFormMode === 'create'
+          ? await adminApiClient.createCharger<AdminCharger>(payload)
+          : await adminApiClient.updateCharger<AdminCharger>(selectedCharger!.id, payload);
+
+      setSelectedCharger(savedCharger);
+      setChargerForm(chargerToForm(savedCharger));
+      setChargerFormMode('edit');
+      setChargerPage((current) => {
+        const exists = current.items.some((charger) => charger.id === savedCharger.id);
+        return {
+          ...current,
+          items: exists
+            ? current.items.map((charger) => (charger.id === savedCharger.id ? savedCharger : charger))
+            : [savedCharger, ...current.items],
+        };
+      });
+      setChargerFormMessage(
+        `Charger ${savedCharger.id} saved. Public charger status remains reported data, not live availability.`,
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setChargerFormErrors(getChargerFieldErrors(error.response.fieldErrors));
+        setChargerFormError(error.response.message || 'Charger could not be saved.');
+      } else {
+        setChargerFormError('Charger could not be saved. Please try again.');
+      }
+    } finally {
+      setIsSavingCharger(false);
+    }
   };
 
   const updateVehicleReviewDraft = (
@@ -711,9 +1121,9 @@ const AdminDashboard = () => {
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Internal admin</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Admin moderation dashboard</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Access to Get Help leads, Contact Us submissions, vehicle reviews, and charger
-            feedback. This view does not create callback, booking, payment, SLA, or live charger
-            availability commitments.
+            Access to Get Help leads, Contact Us submissions, charger directory management, vehicle
+            reviews, and charger feedback. This view does not create callback, booking, payment,
+            SLA, or live charger availability commitments.
           </p>
           <p className="mt-2 text-sm text-slate-500">Signed in as {formatValue(adminUser?.username)}</p>
         </div>
@@ -754,6 +1164,15 @@ const AdminDashboard = () => {
           type="button"
         >
           Vehicle Reviews
+        </button>
+        <button
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+          }`}
+          onClick={() => setActiveSection('chargers')}
+          type="button"
+        >
+          Chargers
         </button>
         <button
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
@@ -1151,6 +1570,163 @@ const AdminDashboard = () => {
             showNext={hasNextPage(vehicleReviewPage)}
           />
         </section>
+      ) : activeSection === 'chargers' ? (
+        <section className="flex flex-col gap-4">
+          <AdminSectionHeader
+            count={chargerPage.totalElements}
+            title="Charger Management"
+            onRefresh={() => void loadChargers(chargerPage.page)}
+          />
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            Charger records use reported, non-live status. Editing a charger does not confirm it is
+            working right now, available, unoccupied, compatible, accessible, or priced as shown.
+            Source confidence is about data provenance, not EVReady field verification.
+          </div>
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-4">
+            <label className="text-sm font-semibold text-slate-700">
+              Active
+              <select
+                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                onChange={(event) => setChargerActiveFilter(event.target.value)}
+                value={chargerActiveFilter}
+              >
+                <option value="all">All records</option>
+                <option value="true">Active only</option>
+                <option value="false">Inactive only</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Reported status
+              <select
+                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                disabled={isChargerFormOptionsLoading || chargerFormOptions.statuses.length === 0}
+                onChange={(event) => setChargerStatusFilter(event.target.value)}
+                value={chargerStatusFilter}
+              >
+                <option value="all">All statuses</option>
+                {chargerFormOptions.statuses.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Source confidence
+              <select
+                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                disabled={isChargerFormOptionsLoading || chargerFormOptions.verificationStatuses.length === 0}
+                onChange={(event) => setChargerVerificationStatusFilter(event.target.value)}
+                value={chargerVerificationStatusFilter}
+              >
+                <option value="all">All source confidence</option>
+                {chargerFormOptions.verificationStatuses.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              City
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) => setChargerCityFilter(event.target.value)}
+                  placeholder="Optional city"
+                  type="text"
+                  value={chargerCityFilter}
+                />
+                <button
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  onClick={handleChargerFiltersApply}
+                  type="button"
+                >
+                  Apply
+                </button>
+              </div>
+            </label>
+          </div>
+          {chargerPage.error ? <Alert message={chargerPage.error} /> : null}
+          {chargerFormOptionsError ? <Alert message={chargerFormOptionsError} /> : null}
+          {chargerFormError ? <Alert message={chargerFormError} /> : null}
+          {chargerFormMessage ? <SuccessMessage message={chargerFormMessage} /> : null}
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+            <div className="space-y-4">
+              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">City</th>
+                      <th className="px-4 py-3">Area / address</th>
+                      <th className="px-4 py-3">Charger type</th>
+                      <th className="px-4 py-3">Charging type</th>
+                      <th className="px-4 py-3">Reported status</th>
+                      <th className="px-4 py-3">Source confidence</th>
+                      <th className="px-4 py-3">Active</th>
+                      <th className="px-4 py-3">Display order</th>
+                      <th className="px-4 py-3">Edit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 align-top">
+                    {chargerPage.items.map((charger) => (
+                      <tr key={charger.id}>
+                        <td className="px-4 py-3">{formatValue(charger.id)}</td>
+                        <td className="px-4 py-3">{formatValue(charger.name)}</td>
+                        <td className="px-4 py-3">{formatValue(charger.city)}</td>
+                        <td className="max-w-sm whitespace-pre-wrap px-4 py-3">{formatAreaAddress(charger)}</td>
+                        <td className="px-4 py-3">{getChargerTypeName(charger)}</td>
+                        <td className="px-4 py-3">{formatStatusLabel(charger.chargingType, chargerFormOptions.chargingTypes)}</td>
+                        <td className="px-4 py-3">{formatStatusLabel(charger.status, chargerFormOptions.statuses)}</td>
+                        <td className="px-4 py-3">
+                          {formatStatusLabel(charger.verificationStatus, chargerFormOptions.verificationStatuses)}
+                        </td>
+                        <td className="px-4 py-3">{charger.active === false || charger.active === 'false' ? 'No' : 'Yes'}</td>
+                        <td className="px-4 py-3">{formatValue(charger.displayOrder)}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="font-semibold text-emerald-700"
+                            onClick={() => void handleSelectCharger(charger)}
+                            type="button"
+                          >
+                            View/edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!chargerPage.isLoading && chargerPage.items.length === 0 ? (
+                  <EmptyState label="No chargers found." />
+                ) : null}
+                {chargerPage.isLoading ? <LoadingState label="Loading chargers..." /> : null}
+              </div>
+              <Pagination
+                isLoading={chargerPage.isLoading}
+                onNext={() => void loadChargers(chargerPage.page + 1)}
+                onPrevious={() => void loadChargers(chargerPage.page - 1)}
+                page={chargerPage.page}
+                showNext={hasNextPage(chargerPage)}
+              />
+            </div>
+            <ChargerFormPanel
+              errors={chargerFormErrors}
+              form={chargerForm}
+              formMode={chargerFormMode}
+              isDetailLoading={isChargerDetailLoading}
+              isOptionsLoading={isChargerFormOptionsLoading}
+              isSaving={isSavingCharger}
+              onCancelEdit={startCreateCharger}
+              onSave={() => void handleChargerSave()}
+              onUpdate={updateChargerForm}
+              options={chargerFormOptions}
+              optionsError={chargerFormOptionsError}
+              selectedCharger={selectedCharger}
+            />
+          </div>
+        </section>
       ) : (
         <section className="flex flex-col gap-4">
           <AdminSectionHeader
@@ -1310,6 +1886,299 @@ const AdminDashboard = () => {
     </main>
   );
 };
+
+type ChargerFormPanelProps = {
+  errors: ChargerFormErrors;
+  form: ChargerFormState;
+  formMode: 'create' | 'edit';
+  isDetailLoading: boolean;
+  isOptionsLoading: boolean;
+  isSaving: boolean;
+  onCancelEdit: () => void;
+  onSave: () => void;
+  onUpdate: <Key extends keyof ChargerFormState>(key: Key, value: ChargerFormState[Key]) => void;
+  options: ChargerFormOptions;
+  optionsError: string | null;
+  selectedCharger: AdminCharger | null;
+};
+
+const ChargerFormPanel = ({
+  errors,
+  form,
+  formMode,
+  isDetailLoading,
+  isOptionsLoading,
+  isSaving,
+  onCancelEdit,
+  onSave,
+  onUpdate,
+  options,
+  optionsError,
+  selectedCharger,
+}: ChargerFormPanelProps) => {
+  const isDisabled = Boolean(optionsError) || isOptionsLoading || isSaving;
+
+  return (
+    <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-slate-950">
+            {formMode === 'create' ? 'Create charger' : `Edit charger ${formatValue(selectedCharger?.id)}`}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Reported status is not live availability. Source confidence is not field verification.
+          </p>
+          {isDetailLoading ? <p className="mt-1 text-sm text-slate-500">Loading charger details...</p> : null}
+        </div>
+        {formMode === 'edit' ? (
+          <button
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            onClick={onCancelEdit}
+            type="button"
+          >
+            New charger
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.chargerTypeId}
+          label="Charger type"
+          onChange={(value) => onUpdate('chargerTypeId', value)}
+          options={options.chargerTypes}
+          value={form.chargerTypeId}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.name}
+          label="Name"
+          onChange={(value) => onUpdate('name', value)}
+          value={form.name}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.city}
+          label="City"
+          onChange={(value) => onUpdate('city', value)}
+          value={form.city}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.area}
+          label="Area"
+          onChange={(value) => onUpdate('area', value)}
+          value={form.area}
+        />
+        <AdminInput
+          className="md:col-span-2"
+          disabled={isDisabled}
+          error={errors.address}
+          label="Address"
+          onChange={(value) => onUpdate('address', value)}
+          value={form.address}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.latitude}
+          label="Latitude"
+          onChange={(value) => onUpdate('latitude', value)}
+          type="number"
+          value={form.latitude}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.longitude}
+          label="Longitude"
+          onChange={(value) => onUpdate('longitude', value)}
+          type="number"
+          value={form.longitude}
+        />
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.chargingType}
+          label="Charging type"
+          onChange={(value) => onUpdate('chargingType', value)}
+          options={options.chargingTypes}
+          value={form.chargingType}
+        />
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.status}
+          label="Reported non-live status"
+          onChange={(value) => onUpdate('status', value)}
+          options={options.statuses}
+          value={form.status}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.powerKw}
+          label="Power kW"
+          onChange={(value) => onUpdate('powerKw', value)}
+          type="number"
+          value={form.powerKw}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.priceNote}
+          label="Price note"
+          onChange={(value) => onUpdate('priceNote', value)}
+          value={form.priceNote}
+        />
+        <AdminTextarea
+          className="md:col-span-2"
+          disabled={isDisabled}
+          error={errors.description}
+          label="Description"
+          onChange={(value) => onUpdate('description', value)}
+          value={form.description}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.image}
+          label="Image URL/path"
+          onChange={(value) => onUpdate('image', value)}
+          value={form.image}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.sourceUrl}
+          label="Source URL"
+          onChange={(value) => onUpdate('sourceUrl', value)}
+          value={form.sourceUrl}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.sourceLabel}
+          label="Source label"
+          onChange={(value) => onUpdate('sourceLabel', value)}
+          value={form.sourceLabel}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.sourceCheckedAt}
+          label="Source checked date"
+          onChange={(value) => onUpdate('sourceCheckedAt', value)}
+          type="date"
+          value={form.sourceCheckedAt}
+        />
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.verificationStatus}
+          label="Source confidence"
+          onChange={(value) => onUpdate('verificationStatus', value)}
+          options={options.verificationStatuses}
+          value={form.verificationStatus}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.displayOrder}
+          label="Display order"
+          onChange={(value) => onUpdate('displayOrder', value)}
+          type="number"
+          value={form.displayOrder}
+        />
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <input
+            checked={form.active}
+            className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+            disabled={isDisabled}
+            onChange={(event) => onUpdate('active', event.target.checked)}
+            type="checkbox"
+          />
+          Active in public directory
+        </label>
+      </div>
+
+      <button
+        className="mt-5 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+        disabled={isDisabled}
+        onClick={onSave}
+        type="button"
+      >
+        {isSaving ? 'Saving...' : formMode === 'create' ? 'Create charger' : 'Save charger'}
+      </button>
+    </aside>
+  );
+};
+
+type AdminInputProps = {
+  className?: string;
+  disabled: boolean;
+  error?: string;
+  label: string;
+  onChange: (value: string) => void;
+  type?: string;
+  value: string;
+};
+
+const AdminInput = ({ className = '', disabled, error, label, onChange, type = 'text', value }: AdminInputProps) => (
+  <label className={`text-sm font-semibold text-slate-700 ${className}`}>
+    {label}
+    <input
+      className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      type={type}
+      value={value}
+    />
+    {error ? <span className="mt-1 block text-xs font-normal text-red-700">{error}</span> : null}
+  </label>
+);
+
+type AdminTextareaProps = {
+  className?: string;
+  disabled: boolean;
+  error?: string;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+};
+
+const AdminTextarea = ({ className = '', disabled, error, label, onChange, value }: AdminTextareaProps) => (
+  <label className={`text-sm font-semibold text-slate-700 ${className}`}>
+    {label}
+    <textarea
+      className="mt-2 min-h-24 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    />
+    {error ? <span className="mt-1 block text-xs font-normal text-red-700">{error}</span> : null}
+  </label>
+);
+
+type AdminSelectProps = {
+  disabled: boolean;
+  error?: string;
+  label: string;
+  onChange: (value: string) => void;
+  options: ChargerFormOption[];
+  value: string;
+};
+
+const AdminSelect = ({ disabled, error, label, onChange, options, value }: AdminSelectProps) => (
+  <label className="text-sm font-semibold text-slate-700">
+    {label}
+    <select
+      className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+      disabled={disabled || options.length === 0}
+      onChange={(event) => onChange(event.target.value)}
+      value={options.some((option) => option.value === value) ? value : ''}
+    >
+      <option value="" disabled>
+        Select option
+      </option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+    {error ? <span className="mt-1 block text-xs font-normal text-red-700">{error}</span> : null}
+  </label>
+);
 
 type AdminSectionHeaderProps = {
   count?: number;
