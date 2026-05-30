@@ -47,6 +47,24 @@ type VehicleReview = {
   moderationReason?: string | null;
 };
 
+type ChargerFeedback = {
+  id: number | string;
+  chargerId?: number | string | null;
+  chargerName?: string | null;
+  rating?: number | string | null;
+  feedbackType?: string | null;
+  message?: string | null;
+  displayName?: string | null;
+  city?: string | null;
+  reportedByContact?: string | null;
+  feedbackStatus?: string | null;
+  createdAt?: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  moderatedAt?: string | null;
+  moderatedBy?: string | null;
+};
+
 type StatusOption = {
   value: string;
   label: string;
@@ -72,7 +90,7 @@ type PageState<T> = {
   error: string | null;
 };
 
-type AdminSection = 'leads' | 'contacts' | 'vehicleReviews';
+type AdminSection = 'leads' | 'contacts' | 'vehicleReviews' | 'chargerFeedback';
 
 type ModerationDraft = {
   reviewStatus: string;
@@ -169,6 +187,9 @@ const AdminDashboard = () => {
   const [leadPage, setLeadPage] = useState<PageState<Lead>>(emptyPage<Lead>());
   const [contactPage, setContactPage] = useState<PageState<ContactSubmission>>(emptyPage<ContactSubmission>());
   const [vehicleReviewPage, setVehicleReviewPage] = useState<PageState<VehicleReview>>(emptyPage<VehicleReview>());
+  const [chargerFeedbackPage, setChargerFeedbackPage] = useState<PageState<ChargerFeedback>>(
+    emptyPage<ChargerFeedback>(),
+  );
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -176,6 +197,7 @@ const AdminDashboard = () => {
   const [updatingLeadId, setUpdatingLeadId] = useState<number | string | null>(null);
   const [updatingContactId, setUpdatingContactId] = useState<number | string | null>(null);
   const [updatingVehicleReviewId, setUpdatingVehicleReviewId] = useState<number | string | null>(null);
+  const [updatingChargerFeedbackId, setUpdatingChargerFeedbackId] = useState<number | string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [leadStatusOptions, setLeadStatusOptions] = useState<StatusOption[]>([]);
@@ -190,6 +212,12 @@ const AdminDashboard = () => {
   const [vehicleReviewStatusFilter, setVehicleReviewStatusFilter] = useState('PENDING');
   const [vehicleReviewVehicleIdFilter, setVehicleReviewVehicleIdFilter] = useState('');
   const [vehicleReviewDrafts, setVehicleReviewDrafts] = useState<Record<string, ModerationDraft>>({});
+  const [chargerFeedbackStatusOptions, setChargerFeedbackStatusOptions] = useState<StatusOption[]>([]);
+  const [isChargerFeedbackStatusOptionsLoading, setIsChargerFeedbackStatusOptionsLoading] = useState(false);
+  const [chargerFeedbackStatusOptionsError, setChargerFeedbackStatusOptionsError] = useState<string | null>(null);
+  const [chargerFeedbackStatusFilter, setChargerFeedbackStatusFilter] = useState('PENDING');
+  const [chargerFeedbackChargerIdFilter, setChargerFeedbackChargerIdFilter] = useState('');
+  const [chargerFeedbackDrafts, setChargerFeedbackDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -277,6 +305,39 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadChargerFeedback = async (
+    page: number,
+    feedbackStatus = chargerFeedbackStatusFilter,
+    chargerId = chargerFeedbackChargerIdFilter,
+  ) => {
+    setChargerFeedbackPage((current) => ({ ...current, page, isLoading: true, error: null }));
+
+    try {
+      const payload = await adminApiClient.listChargerFeedback<PagePayload<ChargerFeedback> | ChargerFeedback[]>({
+        page,
+        size: PAGE_SIZE,
+        feedbackStatus: feedbackStatus === 'all' ? undefined : feedbackStatus,
+        chargerId: chargerId.trim() || undefined,
+      });
+      const nextPage = normalizePage(payload, page);
+      setChargerFeedbackPage(nextPage);
+      setChargerFeedbackDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts };
+
+        nextPage.items.forEach((feedback) => {
+          const feedbackKey = String(feedback.id);
+          if (!nextDrafts[feedbackKey]) {
+            nextDrafts[feedbackKey] = feedback.feedbackStatus ?? '';
+          }
+        });
+
+        return nextDrafts;
+      });
+    } catch (error) {
+      setChargerFeedbackPage((current) => ({ ...current, isLoading: false, error: getAdminErrorMessage(error) }));
+    }
+  };
+
   const loadLeadStatusOptions = async () => {
     setIsLeadStatusOptionsLoading(true);
     setLeadStatusOptionsError(null);
@@ -349,14 +410,42 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadChargerFeedbackStatusOptions = async () => {
+    setIsChargerFeedbackStatusOptionsLoading(true);
+    setChargerFeedbackStatusOptionsError(null);
+
+    try {
+      const options = await adminApiClient.getChargerFeedbackStatusOptions<StatusOption[]>();
+      const validOptions = Array.isArray(options)
+        ? options.filter((option) => typeof option.value === 'string' && typeof option.label === 'string')
+        : [];
+
+      setChargerFeedbackStatusOptions(validOptions);
+      if (validOptions.length === 0) {
+        setChargerFeedbackStatusOptionsError(
+          'Charger feedback status options are not available. Feedback moderation is disabled for now.',
+        );
+      }
+    } catch {
+      setChargerFeedbackStatusOptions([]);
+      setChargerFeedbackStatusOptionsError(
+        'Charger feedback status options could not be loaded. Feedback moderation is disabled for now.',
+      );
+    } finally {
+      setIsChargerFeedbackStatusOptionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (authState === 'authenticated') {
       void loadLeadStatusOptions();
       void loadContactStatusOptions();
       void loadVehicleReviewStatusOptions();
+      void loadChargerFeedbackStatusOptions();
       void loadLeads(0);
       void loadContacts(0);
       void loadVehicleReviews(0);
+      void loadChargerFeedback(0);
     }
   }, [authState]);
 
@@ -380,6 +469,15 @@ const AdminDashboard = () => {
     void loadVehicleReviews(0, vehicleReviewStatusFilter, vehicleReviewVehicleIdFilter);
   };
 
+  const handleChargerFeedbackStatusFilterChange = (nextStatus: string) => {
+    setChargerFeedbackStatusFilter(nextStatus);
+    void loadChargerFeedback(0, nextStatus, chargerFeedbackChargerIdFilter);
+  };
+
+  const handleChargerFeedbackChargerIdFilterSubmit = () => {
+    void loadChargerFeedback(0, chargerFeedbackStatusFilter, chargerFeedbackChargerIdFilter);
+  };
+
   const updateVehicleReviewDraft = (
     reviewId: number | string,
     field: keyof ModerationDraft,
@@ -393,6 +491,15 @@ const AdminDashboard = () => {
         moderationReason: currentDrafts[reviewKey]?.moderationReason ?? '',
         [field]: value,
       },
+    }));
+    setStatusMessage(null);
+    setStatusError(null);
+  };
+
+  const updateChargerFeedbackDraft = (feedbackId: number | string, feedbackStatus: string) => {
+    setChargerFeedbackDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [String(feedbackId)]: feedbackStatus,
     }));
     setStatusMessage(null);
     setStatusError(null);
@@ -441,6 +548,45 @@ const AdminDashboard = () => {
       setStatusError('Vehicle review status could not be updated. Please try again.');
     } finally {
       setUpdatingVehicleReviewId(null);
+    }
+  };
+
+  const handleChargerFeedbackStatusUpdate = async (feedback: ChargerFeedback) => {
+    const feedbackKey = String(feedback.id);
+    const feedbackStatus = chargerFeedbackDrafts[feedbackKey] ?? feedback.feedbackStatus ?? '';
+
+    if (!feedbackStatus) {
+      setStatusError('Choose a feedback status before updating.');
+      return;
+    }
+
+    setUpdatingChargerFeedbackId(feedback.id);
+    setStatusMessage(null);
+    setStatusError(null);
+
+    try {
+      const updatedFeedback = await adminApiClient.updateChargerFeedbackStatus<ChargerFeedback>(
+        feedback.id,
+        feedbackStatus,
+      );
+      setChargerFeedbackPage((current) => ({
+        ...current,
+        items: current.items.map((item) => (item.id === updatedFeedback.id ? updatedFeedback : item)),
+      }));
+      setChargerFeedbackDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [feedbackKey]: updatedFeedback.feedbackStatus ?? '',
+      }));
+      setStatusMessage(
+        `Charger feedback ${updatedFeedback.id} status updated to ${formatStatusLabel(
+          updatedFeedback.feedbackStatus,
+          chargerFeedbackStatusOptions,
+        )}. Charger status was not changed.`,
+      );
+    } catch {
+      setStatusError('Charger feedback status could not be updated. Please try again.');
+    } finally {
+      setUpdatingChargerFeedbackId(null);
     }
   };
 
@@ -563,10 +709,11 @@ const AdminDashboard = () => {
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Internal admin</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">Lead and contact visibility</h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-950">Admin moderation dashboard</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Access to Get Help leads, Contact Us submissions, and vehicle review moderation. This
-            view does not create callback, booking, payment, or SLA commitments.
+            Access to Get Help leads, Contact Us submissions, vehicle reviews, and charger
+            feedback. This view does not create callback, booking, payment, SLA, or live charger
+            availability commitments.
           </p>
           <p className="mt-2 text-sm text-slate-500">Signed in as {formatValue(adminUser?.username)}</p>
         </div>
@@ -607,6 +754,15 @@ const AdminDashboard = () => {
           type="button"
         >
           Vehicle Reviews
+        </button>
+        <button
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            activeSection === 'chargerFeedback' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+          }`}
+          onClick={() => setActiveSection('chargerFeedback')}
+          type="button"
+        >
+          Charger Feedback
         </button>
       </div>
 
@@ -828,7 +984,7 @@ const AdminDashboard = () => {
             />
           ) : null}
         </section>
-      ) : (
+      ) : activeSection === 'vehicleReviews' ? (
         <section className="flex flex-col gap-4">
           <AdminSectionHeader
             count={vehicleReviewPage.totalElements}
@@ -993,6 +1149,160 @@ const AdminDashboard = () => {
             onPrevious={() => void loadVehicleReviews(vehicleReviewPage.page - 1)}
             page={vehicleReviewPage.page}
             showNext={hasNextPage(vehicleReviewPage)}
+          />
+        </section>
+      ) : (
+        <section className="flex flex-col gap-4">
+          <AdminSectionHeader
+            count={chargerFeedbackPage.totalElements}
+            title="Charger Feedback Moderation"
+            onRefresh={() => void loadChargerFeedback(chargerFeedbackPage.page)}
+          />
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            Moderate charger feedback carefully. Status updates here do not change public charger
+            status and must not be treated as live availability, access, occupancy, compatibility,
+            or pricing confirmation.
+          </div>
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-3">
+            <label className="text-sm font-semibold text-slate-700">
+              Feedback status
+              <select
+                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                disabled={isChargerFeedbackStatusOptionsLoading}
+                onChange={(event) => handleChargerFeedbackStatusFilterChange(event.target.value)}
+                value={chargerFeedbackStatusFilter}
+              >
+                <option value="all">All statuses</option>
+                {chargerFeedbackStatusOptions.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700 md:col-span-2">
+              Charger ID
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) => setChargerFeedbackChargerIdFilter(event.target.value)}
+                  placeholder="Optional charger ID"
+                  type="text"
+                  value={chargerFeedbackChargerIdFilter}
+                />
+                <button
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  onClick={handleChargerFeedbackChargerIdFilterSubmit}
+                  type="button"
+                >
+                  Apply
+                </button>
+              </div>
+            </label>
+          </div>
+          {chargerFeedbackPage.error ? <Alert message={chargerFeedbackPage.error} /> : null}
+          {chargerFeedbackStatusOptionsError ? <Alert message={chargerFeedbackStatusOptionsError} /> : null}
+          {statusError ? <Alert message={statusError} /> : null}
+          {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">ID</th>
+                  <th className="px-4 py-3">Charger ID</th>
+                  <th className="px-4 py-3">Charger</th>
+                  <th className="px-4 py-3">Rating</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Message</th>
+                  <th className="px-4 py-3">Display name</th>
+                  <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Contact</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Submitted</th>
+                  <th className="px-4 py-3">Reviewed</th>
+                  <th className="px-4 py-3">Reviewed by</th>
+                  <th className="px-4 py-3">Update</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 align-top">
+                {chargerFeedbackPage.items.map((feedback) => {
+                  const draftStatus = chargerFeedbackDrafts[String(feedback.id)] ?? feedback.feedbackStatus ?? '';
+
+                  return (
+                    <tr key={feedback.id}>
+                      <td className="px-4 py-3">{formatValue(feedback.id)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.chargerId)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.chargerName)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.rating)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.feedbackType)}</td>
+                      <td className="max-w-sm whitespace-pre-wrap px-4 py-3">{formatValue(feedback.message)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.displayName)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.city)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.reportedByContact)}</td>
+                      <td className="px-4 py-3">
+                        {formatStatusLabel(feedback.feedbackStatus, chargerFeedbackStatusOptions)}
+                      </td>
+                      <td className="px-4 py-3">{formatDate(feedback.createdAt)}</td>
+                      <td className="px-4 py-3">{formatDate(feedback.reviewedAt ?? feedback.moderatedAt)}</td>
+                      <td className="px-4 py-3">{formatValue(feedback.reviewedBy ?? feedback.moderatedBy)}</td>
+                      <td className="min-w-56 px-4 py-3">
+                        <div className="flex flex-col gap-2">
+                          <select
+                            aria-label={`Update charger feedback ${feedback.id} status`}
+                            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+                            disabled={
+                              updatingChargerFeedbackId === feedback.id ||
+                              isChargerFeedbackStatusOptionsLoading ||
+                              Boolean(chargerFeedbackStatusOptionsError) ||
+                              chargerFeedbackStatusOptions.length === 0
+                            }
+                            onChange={(event) => updateChargerFeedbackDraft(feedback.id, event.target.value)}
+                            value={
+                              chargerFeedbackStatusOptions.some((status) => status.value === draftStatus)
+                                ? draftStatus
+                                : ''
+                            }
+                          >
+                            <option value="" disabled>
+                              {isChargerFeedbackStatusOptionsLoading ? 'Loading statuses...' : 'Select status'}
+                            </option>
+                            {chargerFeedbackStatusOptions.map((status) => (
+                              <option key={status.value} value={status.value}>
+                                {status.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            disabled={
+                              updatingChargerFeedbackId === feedback.id ||
+                              isChargerFeedbackStatusOptionsLoading ||
+                              Boolean(chargerFeedbackStatusOptionsError) ||
+                              chargerFeedbackStatusOptions.length === 0
+                            }
+                            onClick={() => void handleChargerFeedbackStatusUpdate(feedback)}
+                            type="button"
+                          >
+                            {updatingChargerFeedbackId === feedback.id ? 'Updating...' : 'Update'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!chargerFeedbackPage.isLoading && chargerFeedbackPage.items.length === 0 ? (
+              <EmptyState label="No charger feedback found." />
+            ) : null}
+            {chargerFeedbackPage.isLoading ? <LoadingState label="Loading charger feedback..." /> : null}
+          </div>
+          <Pagination
+            isLoading={chargerFeedbackPage.isLoading}
+            onNext={() => void loadChargerFeedback(chargerFeedbackPage.page + 1)}
+            onPrevious={() => void loadChargerFeedback(chargerFeedbackPage.page - 1)}
+            page={chargerFeedbackPage.page}
+            showNext={hasNextPage(chargerFeedbackPage)}
           />
         </section>
       )}
