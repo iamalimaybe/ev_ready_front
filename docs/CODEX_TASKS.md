@@ -115,10 +115,25 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   status.
 - Admin Dashboard now includes protected charger record management for listing, creating, and
   editing charger directory records through backend admin APIs.
+- Admin charger management now opens to a listing-first view, uses focused add/edit form states,
+  and relies on backend pagination metadata for charger list Previous/Next controls.
 - Public EV Catalogue and Charger Directory now request backend paginated results and load the next
   page automatically when users scroll near the end of each list.
 
 ## Completed
+
+### 2026-05-30 - Admin Charger Management Layout and Pagination Cleanup
+
+Updated protected charger management so admins see the charger list and filters by default, can open
+a focused add-new-charger view from a round plus button, and can open focused edit views from each
+row's View/Edit action. Create and update success states return admins to the list and refresh or
+update list data safely. Charger list pagination now uses backend page metadata for Previous/Next
+controls instead of pretending plain array responses are paginated.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
 
 ### 2026-05-30 - Public Catalogue Backend Pagination
 
