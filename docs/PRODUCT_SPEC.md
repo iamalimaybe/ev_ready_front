@@ -90,8 +90,9 @@ Combines daily range, home charging access, city support, savings, solar availab
 
 ### Expanded Admin and Data-Management Planning
 
-The frontend now has a protected Admin UI for lead/contact visibility and status updates, vehicle
-review moderation, charger feedback moderation, and charger directory record management.
+The frontend now has a protected Admin UI for lead/contact visibility and status updates, EV
+Catalogue record management, vehicle review moderation, charger feedback moderation, and charger
+directory record management.
 
 Scope:
 
@@ -175,6 +176,10 @@ Dedicated charger detail pages at `/chargers/:id` are the chosen direction for d
 The protected Admin Dashboard can create and edit charger directory records through backend admin
 APIs. Admin charger management must label status as reported/non-live where practical and treat
 `verificationStatus` as source confidence, not EVReady field verification.
+
+The protected Admin Dashboard can create and edit EV Catalogue records through backend admin APIs.
+Admin vehicle management must treat `verificationStatus` as source confidence, not EVReady
+verification of specs, prices, availability, range, battery, warranty, or dealer claims.
 
 Charger detail pages can accept public charger feedback submissions through the backend. Submitted
 feedback is stored as pending and is not shown publicly unless approved through moderation.
@@ -287,8 +292,8 @@ The frontend and backend are deployed to production and in sync:
 - Charger Directory loads backend charger data and charger city/type options.
 - Get Help submits to backend.
 - Contact Us submits to backend.
-- Internal Admin routes provide protected read-only visibility into Get Help leads and Contact Us
-  submissions.
+- Internal Admin routes provide protected visibility into Get Help leads and Contact Us
+  submissions, plus protected EV Catalogue and charger directory record management.
 - Trust wording, technical SEO, Cloudflare Web Analytics, and copy/share summaries for
   calculators/estimators are complete.
 

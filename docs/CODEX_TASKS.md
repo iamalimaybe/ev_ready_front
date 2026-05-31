@@ -119,8 +119,40 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   and relies on backend pagination metadata for charger list Previous/Next controls.
 - Public EV Catalogue and Charger Directory now request backend paginated results and load the next
   page automatically when users scroll near the end of each list.
+- Admin Dashboard now includes protected EV Catalogue vehicle record management for listing,
+  creating, and editing vehicle records through backend admin APIs and backend form options.
+- Admin Dashboard now lazy-loads as a separate production chunk so the main Vite bundle stays below
+  the chunk-size warning threshold.
 
 ## Completed
+
+### 2026-05-31 - Admin Dashboard Chunk Split
+
+Lazy-loaded the protected Admin Dashboard route so the larger internal management UI is emitted as a
+separate production chunk instead of being bundled into the initial public app payload. `npm run
+build` now completes without Vite's chunk-size warning.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/main.tsx`
+
+### 2026-05-31 - Admin EV Catalogue Management UI
+
+Added protected Admin Dashboard EV Catalogue management. Admin users can load vehicle records with
+backend pagination, filter by active state, type, brand, charger type, and source confidence, open a
+focused add-new-EV form, open focused edit views from each row, create records through
+`POST /api/v1/admin/vehicles`, and save changes through `PATCH /api/v1/admin/vehicles/{id}`. The
+form uses backend vehicle form options for brands, charger types, vehicle types, and source
+confidence statuses, shows backend validation errors where available, and keeps source confidence
+wording separate from EVReady verification claims.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `docs/PRODUCT_SPEC.md`
+- `src/pages/admin/AdminDashboard.tsx`
+- `src/utils/adminApi.ts`
 
 ### 2026-05-30 - Admin Charger Management Layout and Pagination Cleanup
 

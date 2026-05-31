@@ -25,6 +25,16 @@ type ChargerListParams = {
   verificationStatus?: string;
 };
 
+type AdminVehicleListParams = {
+  page?: number;
+  size?: number;
+  active?: string;
+  type?: string;
+  brandId?: string;
+  chargerTypeId?: string;
+  verificationStatus?: string;
+};
+
 const buildAdminUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
@@ -183,4 +193,45 @@ export const adminApiClient = {
   createCharger: <T>(charger: Record<string, unknown>) => request<T>('POST', '/api/v1/admin/chargers', charger),
   updateCharger: <T>(chargerId: number | string, charger: Record<string, unknown>) =>
     request<T>('PATCH', `/api/v1/admin/chargers/${chargerId}`, charger),
+  listVehicles: <T>({
+    page = 0,
+    size = 20,
+    active,
+    type,
+    brandId,
+    chargerTypeId,
+    verificationStatus,
+  }: AdminVehicleListParams = {}) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+    });
+
+    if (active) {
+      params.set('active', active);
+    }
+
+    if (type) {
+      params.set('type', type);
+    }
+
+    if (brandId) {
+      params.set('brandId', brandId);
+    }
+
+    if (chargerTypeId) {
+      params.set('chargerTypeId', chargerTypeId);
+    }
+
+    if (verificationStatus) {
+      params.set('verificationStatus', verificationStatus);
+    }
+
+    return request<T>('GET', `/api/v1/admin/vehicles?${params.toString()}`);
+  },
+  getVehicle: <T>(vehicleId: number | string) => request<T>('GET', `/api/v1/admin/vehicles/${vehicleId}`),
+  getVehicleFormOptions: <T>() => request<T>('GET', '/api/v1/admin/vehicles/form-options'),
+  createVehicle: <T>(vehicle: Record<string, unknown>) => request<T>('POST', '/api/v1/admin/vehicles', vehicle),
+  updateVehicle: <T>(vehicleId: number | string, vehicle: Record<string, unknown>) =>
+    request<T>('PATCH', `/api/v1/admin/vehicles/${vehicleId}`, vehicle),
 };
