@@ -92,6 +92,35 @@ type AdminCharger = {
   displayOrder?: number | string | null;
 };
 
+type AdminVehicle = {
+  id: number | string;
+  type?: string | null;
+  brandId?: number | string | null;
+  brand?: {
+    id?: number | string | null;
+    name?: string | null;
+  } | null;
+  chargerTypeId?: number | string | null;
+  chargerType?: {
+    id?: number | string | null;
+    name?: string | null;
+  } | null;
+  model?: string | null;
+  variant?: string | null;
+  pricePkr?: number | string | null;
+  rangeKm?: number | string | null;
+  batteryCapacityKwh?: number | string | null;
+  dcFastCharging?: boolean | string | null;
+  image?: string | null;
+  description?: string | null;
+  sourceUrl?: string | null;
+  sourceLabel?: string | null;
+  sourceCheckedAt?: string | null;
+  verificationStatus?: string | null;
+  active?: boolean | string | null;
+  displayOrder?: number | string | null;
+};
+
 type StatusOption = {
   value: string;
   label: string;
@@ -106,6 +135,13 @@ type ChargerFormOptions = {
   chargerTypes: ChargerFormOption[];
   chargingTypes: ChargerFormOption[];
   statuses: ChargerFormOption[];
+  verificationStatuses: ChargerFormOption[];
+};
+
+type VehicleFormOptions = {
+  brands: ChargerFormOption[];
+  chargerTypes: ChargerFormOption[];
+  vehicleTypes: ChargerFormOption[];
   verificationStatuses: ChargerFormOption[];
 };
 
@@ -133,6 +169,28 @@ type ChargerFormState = {
 
 type ChargerFormErrors = Partial<Record<keyof ChargerFormState, string>>;
 
+type VehicleFormState = {
+  type: string;
+  brandId: string;
+  chargerTypeId: string;
+  model: string;
+  variant: string;
+  pricePkr: string;
+  rangeKm: string;
+  batteryCapacityKwh: string;
+  dcFastCharging: boolean;
+  image: string;
+  description: string;
+  sourceUrl: string;
+  sourceLabel: string;
+  sourceCheckedAt: string;
+  verificationStatus: string;
+  active: boolean;
+  displayOrder: string;
+};
+
+type VehicleFormErrors = Partial<Record<keyof VehicleFormState, string>>;
+
 type PagePayload<T> = {
   content?: T[];
   number?: number;
@@ -153,8 +211,9 @@ type PageState<T> = {
   error: string | null;
 };
 
-type AdminSection = 'leads' | 'contacts' | 'vehicleReviews' | 'chargerFeedback' | 'chargers';
+type AdminSection = 'leads' | 'contacts' | 'vehicles' | 'vehicleReviews' | 'chargerFeedback' | 'chargers';
 type ChargerManagementView = 'list' | 'create' | 'edit';
+type VehicleManagementView = 'list' | 'create' | 'edit';
 
 type ModerationDraft = {
   reviewStatus: string;
@@ -189,6 +248,33 @@ const emptyChargerFormOptions: ChargerFormOptions = {
   chargerTypes: [],
   chargingTypes: [],
   statuses: [],
+  verificationStatuses: [],
+};
+
+const initialVehicleForm: VehicleFormState = {
+  type: '',
+  brandId: '',
+  chargerTypeId: '',
+  model: '',
+  variant: '',
+  pricePkr: '',
+  rangeKm: '',
+  batteryCapacityKwh: '',
+  dcFastCharging: false,
+  image: '',
+  description: '',
+  sourceUrl: '',
+  sourceLabel: '',
+  sourceCheckedAt: '',
+  verificationStatus: '',
+  active: true,
+  displayOrder: '0',
+};
+
+const emptyVehicleFormOptions: VehicleFormOptions = {
+  brands: [],
+  chargerTypes: [],
+  vehicleTypes: [],
   verificationStatuses: [],
 };
 
@@ -318,7 +404,44 @@ const normalizeChargerFormOptions = (payload: unknown): ChargerFormOptions => {
   };
 };
 
+const normalizeVehicleFormOptions = (payload: unknown): VehicleFormOptions => {
+  if (!payload || typeof payload !== 'object') {
+    return emptyVehicleFormOptions;
+  }
+
+  const options = payload as Record<string, unknown>;
+
+  return {
+    brands: normalizeOptions(options.brands ?? options.brandOptions),
+    chargerTypes: normalizeOptions(options.chargerTypes ?? options.chargerTypeOptions),
+    vehicleTypes: normalizeOptions(options.vehicleTypes ?? options.typeOptions ?? options.types),
+    verificationStatuses: normalizeOptions(
+      options.verificationStatuses ?? options.verificationStatusOptions ?? options.sourceConfidenceOptions,
+    ),
+  };
+};
+
 const getChargerTypeId = (charger: AdminCharger) => charger.chargerTypeId ?? charger.chargerType?.id ?? '';
+
+const getVehicleBrandId = (vehicle: AdminVehicle) => vehicle.brandId ?? vehicle.brand?.id ?? '';
+
+const getVehicleChargerTypeId = (vehicle: AdminVehicle) => vehicle.chargerTypeId ?? vehicle.chargerType?.id ?? '';
+
+const getVehicleBrandName = (vehicle: AdminVehicle) => {
+  if (vehicle.brand?.name) {
+    return vehicle.brand.name;
+  }
+
+  return formatValue(vehicle.brandId);
+};
+
+const getVehicleChargerTypeName = (vehicle: AdminVehicle) => {
+  if (vehicle.chargerType?.name) {
+    return vehicle.chargerType.name;
+  }
+
+  return formatValue(vehicle.chargerTypeId);
+};
 
 const toDateInputValue = (value?: string | null) => {
   if (!value) {
@@ -348,6 +471,26 @@ const chargerToForm = (charger: AdminCharger): ChargerFormState => ({
   verificationStatus: String(charger.verificationStatus ?? ''),
   active: charger.active === false || charger.active === 'false' ? false : true,
   displayOrder: String(charger.displayOrder ?? '0'),
+});
+
+const vehicleToForm = (vehicle: AdminVehicle): VehicleFormState => ({
+  type: String(vehicle.type ?? ''),
+  brandId: String(getVehicleBrandId(vehicle)),
+  chargerTypeId: String(getVehicleChargerTypeId(vehicle)),
+  model: String(vehicle.model ?? ''),
+  variant: String(vehicle.variant ?? ''),
+  pricePkr: String(vehicle.pricePkr ?? ''),
+  rangeKm: String(vehicle.rangeKm ?? ''),
+  batteryCapacityKwh: String(vehicle.batteryCapacityKwh ?? ''),
+  dcFastCharging: vehicle.dcFastCharging === true || vehicle.dcFastCharging === 'true',
+  image: String(vehicle.image ?? ''),
+  description: String(vehicle.description ?? ''),
+  sourceUrl: String(vehicle.sourceUrl ?? ''),
+  sourceLabel: String(vehicle.sourceLabel ?? ''),
+  sourceCheckedAt: toDateInputValue(vehicle.sourceCheckedAt),
+  verificationStatus: String(vehicle.verificationStatus ?? ''),
+  active: vehicle.active === false || vehicle.active === 'false' ? false : true,
+  displayOrder: String(vehicle.displayOrder ?? '0'),
 });
 
 const trimOptional = (value: string) => {
@@ -392,7 +535,29 @@ const chargerFormToPayload = (form: ChargerFormState) => ({
   ...optionalNumberField('displayOrder', form.displayOrder),
 });
 
+const vehicleFormToPayload = (form: VehicleFormState) => ({
+  ...optionalStringField('type', form.type),
+  ...optionalNumberField('brandId', form.brandId),
+  ...optionalNumberField('chargerTypeId', form.chargerTypeId),
+  ...optionalStringField('model', form.model),
+  ...optionalStringField('variant', form.variant),
+  ...optionalNumberField('pricePkr', form.pricePkr),
+  ...optionalNumberField('rangeKm', form.rangeKm),
+  ...optionalNumberField('batteryCapacityKwh', form.batteryCapacityKwh),
+  dcFastCharging: form.dcFastCharging,
+  ...optionalStringField('image', form.image),
+  ...optionalStringField('description', form.description),
+  ...optionalStringField('sourceUrl', form.sourceUrl),
+  ...optionalStringField('sourceLabel', form.sourceLabel),
+  ...optionalStringField('sourceCheckedAt', form.sourceCheckedAt),
+  ...optionalStringField('verificationStatus', form.verificationStatus),
+  active: form.active,
+  ...optionalNumberField('displayOrder', form.displayOrder),
+});
+
 const isChargerFormField = (field: string): field is keyof ChargerFormState => field in initialChargerForm;
+
+const isVehicleFormField = (field: string): field is keyof VehicleFormState => field in initialVehicleForm;
 
 const getChargerFieldErrors = (fieldErrors: BackendFieldErrors | undefined): ChargerFormErrors => {
   if (!fieldErrors) {
@@ -412,6 +577,31 @@ const getChargerFieldErrors = (fieldErrors: BackendFieldErrors | undefined): Cha
 
   Object.entries(fieldErrors).forEach(([field, message]) => {
     if (isChargerFormField(field) && message) {
+      nextErrors[field] = message;
+    }
+  });
+
+  return nextErrors;
+};
+
+const getVehicleFieldErrors = (fieldErrors: BackendFieldErrors | undefined): VehicleFormErrors => {
+  if (!fieldErrors) {
+    return {};
+  }
+
+  const nextErrors: VehicleFormErrors = {};
+
+  if (Array.isArray(fieldErrors)) {
+    fieldErrors.forEach((fieldError) => {
+      if (isVehicleFormField(fieldError.field) && fieldError.message) {
+        nextErrors[fieldError.field] = fieldError.message;
+      }
+    });
+    return nextErrors;
+  }
+
+  Object.entries(fieldErrors).forEach(([field, message]) => {
+    if (isVehicleFormField(field) && message) {
       nextErrors[field] = message;
     }
   });
@@ -441,6 +631,7 @@ const AdminDashboard = () => {
   const [chargerFeedbackPage, setChargerFeedbackPage] = useState<PageState<ChargerFeedback>>(
     emptyPage<ChargerFeedback>(),
   );
+  const [vehiclePage, setVehiclePage] = useState<PageState<AdminVehicle>>(emptyPage<AdminVehicle>());
   const [chargerPage, setChargerPage] = useState<PageState<AdminCharger>>(emptyPage<AdminCharger>());
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
@@ -470,6 +661,23 @@ const AdminDashboard = () => {
   const [chargerFeedbackStatusFilter, setChargerFeedbackStatusFilter] = useState('PENDING');
   const [chargerFeedbackChargerIdFilter, setChargerFeedbackChargerIdFilter] = useState('');
   const [chargerFeedbackDrafts, setChargerFeedbackDrafts] = useState<Record<string, string>>({});
+  const [vehicleFormOptions, setVehicleFormOptions] = useState<VehicleFormOptions>(emptyVehicleFormOptions);
+  const [isVehicleFormOptionsLoading, setIsVehicleFormOptionsLoading] = useState(false);
+  const [vehicleFormOptionsError, setVehicleFormOptionsError] = useState<string | null>(null);
+  const [vehicleActiveFilter, setVehicleActiveFilter] = useState('all');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
+  const [vehicleBrandFilter, setVehicleBrandFilter] = useState('all');
+  const [vehicleChargerTypeFilter, setVehicleChargerTypeFilter] = useState('all');
+  const [vehicleVerificationStatusFilter, setVehicleVerificationStatusFilter] = useState('all');
+  const [selectedVehicle, setSelectedVehicle] = useState<AdminVehicle | null>(null);
+  const [vehicleForm, setVehicleForm] = useState<VehicleFormState>(initialVehicleForm);
+  const [vehicleFormErrors, setVehicleFormErrors] = useState<VehicleFormErrors>({});
+  const [vehicleFormMode, setVehicleFormMode] = useState<'create' | 'edit'>('create');
+  const [vehicleFormMessage, setVehicleFormMessage] = useState<string | null>(null);
+  const [vehicleFormError, setVehicleFormError] = useState<string | null>(null);
+  const [vehicleManagementView, setVehicleManagementView] = useState<VehicleManagementView>('list');
+  const [isVehicleDetailLoading, setIsVehicleDetailLoading] = useState(false);
+  const [isSavingVehicle, setIsSavingVehicle] = useState(false);
   const [chargerFormOptions, setChargerFormOptions] = useState<ChargerFormOptions>(emptyChargerFormOptions);
   const [isChargerFormOptionsLoading, setIsChargerFormOptionsLoading] = useState(false);
   const [chargerFormOptionsError, setChargerFormOptionsError] = useState<string | null>(null);
@@ -606,6 +814,32 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadVehicles = async (
+    page: number,
+    active = vehicleActiveFilter,
+    type = vehicleTypeFilter,
+    brandId = vehicleBrandFilter,
+    chargerTypeId = vehicleChargerTypeFilter,
+    verificationStatus = vehicleVerificationStatusFilter,
+  ) => {
+    setVehiclePage((current) => ({ ...current, page, isLoading: true, error: null }));
+
+    try {
+      const payload = await adminApiClient.listVehicles<PagePayload<AdminVehicle> | AdminVehicle[]>({
+        page,
+        size: PAGE_SIZE,
+        active: active === 'all' ? undefined : active,
+        type: type === 'all' ? undefined : type,
+        brandId: brandId === 'all' ? undefined : brandId,
+        chargerTypeId: chargerTypeId === 'all' ? undefined : chargerTypeId,
+        verificationStatus: verificationStatus === 'all' ? undefined : verificationStatus,
+      });
+      setVehiclePage(normalizePage(payload, page));
+    } catch (error) {
+      setVehiclePage((current) => ({ ...current, isLoading: false, error: getAdminErrorMessage(error) }));
+    }
+  };
+
   const loadChargers = async (
     page: number,
     active = chargerActiveFilter,
@@ -728,6 +962,31 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadVehicleFormOptions = async () => {
+    setIsVehicleFormOptionsLoading(true);
+    setVehicleFormOptionsError(null);
+
+    try {
+      const options = await adminApiClient.getVehicleFormOptions<unknown>();
+      const nextOptions = normalizeVehicleFormOptions(options);
+      setVehicleFormOptions(nextOptions);
+
+      if (
+        nextOptions.brands.length === 0 ||
+        nextOptions.chargerTypes.length === 0 ||
+        nextOptions.vehicleTypes.length === 0 ||
+        nextOptions.verificationStatuses.length === 0
+      ) {
+        setVehicleFormOptionsError('Vehicle form options are incomplete. Create and edit are disabled for now.');
+      }
+    } catch {
+      setVehicleFormOptions(emptyVehicleFormOptions);
+      setVehicleFormOptionsError('Vehicle form options could not be loaded. Create and edit are disabled for now.');
+    } finally {
+      setIsVehicleFormOptionsLoading(false);
+    }
+  };
+
   const loadChargerFormOptions = async () => {
     setIsChargerFormOptionsLoading(true);
     setChargerFormOptionsError(null);
@@ -759,11 +1018,13 @@ const AdminDashboard = () => {
       void loadContactStatusOptions();
       void loadVehicleReviewStatusOptions();
       void loadChargerFeedbackStatusOptions();
+      void loadVehicleFormOptions();
       void loadChargerFormOptions();
       void loadLeads(0);
       void loadContacts(0);
       void loadVehicleReviews(0);
       void loadChargerFeedback(0);
+      void loadVehicles(0);
       void loadChargers(0);
     }
   }, [authState]);
@@ -795,6 +1056,116 @@ const AdminDashboard = () => {
 
   const handleChargerFeedbackChargerIdFilterSubmit = () => {
     void loadChargerFeedback(0, chargerFeedbackStatusFilter, chargerFeedbackChargerIdFilter);
+  };
+
+  const handleVehicleFiltersApply = () => {
+    void loadVehicles(
+      0,
+      vehicleActiveFilter,
+      vehicleTypeFilter,
+      vehicleBrandFilter,
+      vehicleChargerTypeFilter,
+      vehicleVerificationStatusFilter,
+    );
+  };
+
+  const startCreateVehicle = () => {
+    setSelectedVehicle(null);
+    setVehicleForm(initialVehicleForm);
+    setVehicleFormErrors({});
+    setVehicleFormMode('create');
+    setVehicleFormMessage(null);
+    setVehicleFormError(null);
+    setVehicleManagementView('create');
+  };
+
+  const returnToVehicleList = () => {
+    setSelectedVehicle(null);
+    setVehicleForm(initialVehicleForm);
+    setVehicleFormErrors({});
+    setVehicleFormError(null);
+    setVehicleManagementView('list');
+  };
+
+  const handleSelectVehicle = async (vehicle: AdminVehicle) => {
+    setVehicleFormMode('edit');
+    setSelectedVehicle(vehicle);
+    setVehicleForm(vehicleToForm(vehicle));
+    setVehicleFormErrors({});
+    setVehicleFormMessage(null);
+    setVehicleFormError(null);
+    setVehicleManagementView('edit');
+    setIsVehicleDetailLoading(true);
+
+    try {
+      const detail = await adminApiClient.getVehicle<AdminVehicle>(vehicle.id);
+      setSelectedVehicle(detail);
+      setVehicleForm(vehicleToForm(detail));
+    } catch {
+      setVehicleFormError('Full vehicle details could not be loaded. The list values are shown for editing.');
+    } finally {
+      setIsVehicleDetailLoading(false);
+    }
+  };
+
+  const updateVehicleForm = <Key extends keyof VehicleFormState>(key: Key, value: VehicleFormState[Key]) => {
+    setVehicleForm((current) => ({ ...current, [key]: value }));
+    setVehicleFormErrors((current) => ({ ...current, [key]: undefined }));
+    setVehicleFormMessage(null);
+    setVehicleFormError(null);
+  };
+
+  const handleVehicleSave = async () => {
+    if (vehicleFormOptionsError || isVehicleFormOptionsLoading) {
+      setVehicleFormError('Vehicle form options are not available yet.');
+      return;
+    }
+
+    if (vehicleFormMode === 'edit' && !selectedVehicle) {
+      setVehicleFormError('Select a vehicle before saving changes.');
+      return;
+    }
+
+    setIsSavingVehicle(true);
+    setVehicleFormMessage(null);
+    setVehicleFormError(null);
+    setVehicleFormErrors({});
+
+    try {
+      const payload = vehicleFormToPayload(vehicleForm);
+      const savedMode = vehicleFormMode;
+      const savedVehicle =
+        savedMode === 'create'
+          ? await adminApiClient.createVehicle<AdminVehicle>(payload)
+          : await adminApiClient.updateVehicle<AdminVehicle>(selectedVehicle!.id, payload);
+
+      setSelectedVehicle(savedVehicle);
+      setVehicleForm(vehicleToForm(savedVehicle));
+      setVehicleFormMode('edit');
+      setVehiclePage((current) => {
+        const exists = current.items.some((vehicle) => vehicle.id === savedVehicle.id);
+        return {
+          ...current,
+          items: exists
+            ? current.items.map((vehicle) => (vehicle.id === savedVehicle.id ? savedVehicle : vehicle))
+            : [savedVehicle, ...current.items],
+          totalElements:
+            exists || typeof current.totalElements !== 'number' ? current.totalElements : current.totalElements + 1,
+        };
+      });
+      setVehicleFormMessage(`EV ${savedVehicle.id} saved. Source confidence does not mean EVReady verified the specs.`);
+      setVehicleManagementView('list');
+      void loadVehicles(savedMode === 'create' ? 0 : vehiclePage.page);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setVehicleFormErrors(getVehicleFieldErrors(error.response.fieldErrors));
+        setVehicleFormError(error.response.message || 'Vehicle could not be saved.');
+      } else {
+        setVehicleFormError('Vehicle could not be saved. Please try again.');
+      }
+    } finally {
+      setIsSavingVehicle(false);
+    }
   };
 
   const handleChargerFiltersApply = () => {
@@ -1141,9 +1512,9 @@ const AdminDashboard = () => {
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Internal admin</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Admin moderation dashboard</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Access to Get Help leads, Contact Us submissions, charger directory management, vehicle
-            reviews, and charger feedback. This view does not create callback, booking, payment,
-            SLA, or live charger availability commitments.
+            Access to Get Help leads, Contact Us submissions, EV Catalogue management, charger
+            directory management, vehicle reviews, and charger feedback. This view does not create
+            callback, booking, payment, SLA, or live charger availability commitments.
           </p>
           <p className="mt-2 text-sm text-slate-500">Signed in as {formatValue(adminUser?.username)}</p>
         </div>
@@ -1184,6 +1555,18 @@ const AdminDashboard = () => {
           type="button"
         >
           Vehicle Reviews
+        </button>
+        <button
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            activeSection === 'vehicles' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+          }`}
+          onClick={() => {
+            setActiveSection('vehicles');
+            setVehicleManagementView('list');
+          }}
+          type="button"
+        >
+          EV Catalogue
         </button>
         <button
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
@@ -1593,6 +1976,220 @@ const AdminDashboard = () => {
             showNext={hasNextPage(vehicleReviewPage)}
           />
         </section>
+      ) : activeSection === 'vehicles' ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-950">
+                {vehicleManagementView === 'create'
+                  ? 'Add new EV'
+                  : vehicleManagementView === 'edit'
+                    ? `Edit EV ${formatValue(selectedVehicle?.id)}`
+                    : 'EV Catalogue Management'}
+              </h2>
+              {vehicleManagementView === 'list' && typeof vehiclePage.totalElements === 'number' ? (
+                <p className="text-sm text-slate-500">{vehiclePage.totalElements} total records</p>
+              ) : null}
+            </div>
+            {vehicleManagementView === 'list' ? (
+              <div className="flex items-center gap-2">
+                <button
+                  aria-label="Add new EV"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-xl font-semibold leading-none text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  disabled={Boolean(vehicleFormOptionsError) || isVehicleFormOptionsLoading}
+                  onClick={startCreateVehicle}
+                  title="Add new EV"
+                  type="button"
+                >
+                  +
+                </button>
+                <button
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  onClick={() => void loadVehicles(vehiclePage.page)}
+                  type="button"
+                >
+                  Refresh
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            EV Catalogue records are admin-maintained source data. Source confidence is about data
+            provenance, not EVReady field verification of specs, price, availability, range,
+            battery, warranty, or dealer claims.
+          </div>
+          {vehiclePage.error ? <Alert message={vehiclePage.error} /> : null}
+          {vehicleFormOptionsError ? <Alert message={vehicleFormOptionsError} /> : null}
+          {vehicleFormError ? <Alert message={vehicleFormError} /> : null}
+          {vehicleFormMessage ? <SuccessMessage message={vehicleFormMessage} /> : null}
+          {vehicleManagementView === 'list' ? (
+            <div className="space-y-4">
+              <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-5">
+                <label className="text-sm font-semibold text-slate-700">
+                  Active
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) => setVehicleActiveFilter(event.target.value)}
+                    value={vehicleActiveFilter}
+                  >
+                    <option value="all">All records</option>
+                    <option value="true">Active only</option>
+                    <option value="false">Inactive only</option>
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Type
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    disabled={isVehicleFormOptionsLoading || vehicleFormOptions.vehicleTypes.length === 0}
+                    onChange={(event) => setVehicleTypeFilter(event.target.value)}
+                    value={vehicleTypeFilter}
+                  >
+                    <option value="all">All types</option>
+                    {vehicleFormOptions.vehicleTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Brand
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    disabled={isVehicleFormOptionsLoading || vehicleFormOptions.brands.length === 0}
+                    onChange={(event) => setVehicleBrandFilter(event.target.value)}
+                    value={vehicleBrandFilter}
+                  >
+                    <option value="all">All brands</option>
+                    {vehicleFormOptions.brands.map((brand) => (
+                      <option key={brand.value} value={brand.value}>
+                        {brand.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Charger type
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    disabled={isVehicleFormOptionsLoading || vehicleFormOptions.chargerTypes.length === 0}
+                    onChange={(event) => setVehicleChargerTypeFilter(event.target.value)}
+                    value={vehicleChargerTypeFilter}
+                  >
+                    <option value="all">All charger types</option>
+                    {vehicleFormOptions.chargerTypes.map((chargerType) => (
+                      <option key={chargerType.value} value={chargerType.value}>
+                        {chargerType.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Source confidence
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    <select
+                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                      disabled={isVehicleFormOptionsLoading || vehicleFormOptions.verificationStatuses.length === 0}
+                      onChange={(event) => setVehicleVerificationStatusFilter(event.target.value)}
+                      value={vehicleVerificationStatusFilter}
+                    >
+                      <option value="all">All source confidence</option>
+                      {vehicleFormOptions.verificationStatuses.map((status) => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={handleVehicleFiltersApply}
+                      type="button"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </label>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Brand</th>
+                      <th className="px-4 py-3">Model</th>
+                      <th className="px-4 py-3">Variant</th>
+                      <th className="px-4 py-3">Price</th>
+                      <th className="px-4 py-3">Range</th>
+                      <th className="px-4 py-3">Charger type</th>
+                      <th className="px-4 py-3">Source confidence</th>
+                      <th className="px-4 py-3">Active</th>
+                      <th className="px-4 py-3">Display order</th>
+                      <th className="px-4 py-3">Edit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 align-top">
+                    {vehiclePage.items.map((vehicle) => (
+                      <tr key={vehicle.id}>
+                        <td className="px-4 py-3">{formatValue(vehicle.id)}</td>
+                        <td className="px-4 py-3">{formatStatusLabel(vehicle.type, vehicleFormOptions.vehicleTypes)}</td>
+                        <td className="px-4 py-3">{getVehicleBrandName(vehicle)}</td>
+                        <td className="px-4 py-3">{formatValue(vehicle.model)}</td>
+                        <td className="px-4 py-3">{formatValue(vehicle.variant)}</td>
+                        <td className="px-4 py-3">{formatValue(vehicle.pricePkr)}</td>
+                        <td className="px-4 py-3">{formatValue(vehicle.rangeKm)}</td>
+                        <td className="px-4 py-3">{getVehicleChargerTypeName(vehicle)}</td>
+                        <td className="px-4 py-3">
+                          {formatStatusLabel(vehicle.verificationStatus, vehicleFormOptions.verificationStatuses)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {vehicle.active === false || vehicle.active === 'false' ? 'No' : 'Yes'}
+                        </td>
+                        <td className="px-4 py-3">{formatValue(vehicle.displayOrder)}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="font-semibold text-emerald-700"
+                            onClick={() => void handleSelectVehicle(vehicle)}
+                            type="button"
+                          >
+                            View/Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!vehiclePage.isLoading && vehiclePage.items.length === 0 ? (
+                  <EmptyState label="No vehicles found." />
+                ) : null}
+                {vehiclePage.isLoading ? <LoadingState label="Loading vehicles..." /> : null}
+              </div>
+              <Pagination
+                isLoading={vehiclePage.isLoading}
+                onNext={() => void loadVehicles(vehiclePage.page + 1)}
+                onPrevious={() => void loadVehicles(vehiclePage.page - 1)}
+                page={vehiclePage.page}
+                showNext={hasNextPaginatedPage(vehiclePage)}
+              />
+            </div>
+          ) : (
+            <VehicleFormPanel
+              errors={vehicleFormErrors}
+              form={vehicleForm}
+              formMode={vehicleFormMode}
+              isDetailLoading={isVehicleDetailLoading}
+              isOptionsLoading={isVehicleFormOptionsLoading}
+              isSaving={isSavingVehicle}
+              onCancel={returnToVehicleList}
+              onSave={() => void handleVehicleSave()}
+              onUpdate={updateVehicleForm}
+              options={vehicleFormOptions}
+              optionsError={vehicleFormOptionsError}
+              selectedVehicle={selectedVehicle}
+            />
+          )}
+        </section>
       ) : activeSection === 'chargers' ? (
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1954,6 +2551,212 @@ type ChargerFormPanelProps = {
   options: ChargerFormOptions;
   optionsError: string | null;
   selectedCharger: AdminCharger | null;
+};
+
+type VehicleFormPanelProps = {
+  errors: VehicleFormErrors;
+  form: VehicleFormState;
+  formMode: 'create' | 'edit';
+  isDetailLoading: boolean;
+  isOptionsLoading: boolean;
+  isSaving: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+  onUpdate: <Key extends keyof VehicleFormState>(key: Key, value: VehicleFormState[Key]) => void;
+  options: VehicleFormOptions;
+  optionsError: string | null;
+  selectedVehicle: AdminVehicle | null;
+};
+
+const VehicleFormPanel = ({
+  errors,
+  form,
+  formMode,
+  isDetailLoading,
+  isOptionsLoading,
+  isSaving,
+  onCancel,
+  onSave,
+  onUpdate,
+  options,
+  optionsError,
+  selectedVehicle,
+}: VehicleFormPanelProps) => {
+  const isDisabled = Boolean(optionsError) || isOptionsLoading || isSaving;
+
+  return (
+    <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-slate-950">
+            {formMode === 'create' ? 'Add new EV' : `Edit EV ${formatValue(selectedVehicle?.id)}`}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Source confidence is about data provenance, not EVReady verification of specs,
+            pricing, availability, range, battery, warranty, or dealer claims.
+          </p>
+          {isDetailLoading ? <p className="mt-1 text-sm text-slate-500">Loading EV details...</p> : null}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.type}
+          label="Type"
+          onChange={(value) => onUpdate('type', value)}
+          options={options.vehicleTypes}
+          value={form.type}
+        />
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.brandId}
+          label="Brand"
+          onChange={(value) => onUpdate('brandId', value)}
+          options={options.brands}
+          value={form.brandId}
+        />
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.chargerTypeId}
+          label="Charger type"
+          onChange={(value) => onUpdate('chargerTypeId', value)}
+          options={options.chargerTypes}
+          value={form.chargerTypeId}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.model}
+          label="Model"
+          onChange={(value) => onUpdate('model', value)}
+          value={form.model}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.variant}
+          label="Variant"
+          onChange={(value) => onUpdate('variant', value)}
+          value={form.variant}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.pricePkr}
+          label="Price PKR"
+          onChange={(value) => onUpdate('pricePkr', value)}
+          type="number"
+          value={form.pricePkr}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.rangeKm}
+          label="Range km"
+          onChange={(value) => onUpdate('rangeKm', value)}
+          type="number"
+          value={form.rangeKm}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.batteryCapacityKwh}
+          label="Battery capacity kWh"
+          onChange={(value) => onUpdate('batteryCapacityKwh', value)}
+          type="number"
+          value={form.batteryCapacityKwh}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.image}
+          label="Image URL/path"
+          onChange={(value) => onUpdate('image', value)}
+          value={form.image}
+        />
+        <AdminTextarea
+          className="md:col-span-2"
+          disabled={isDisabled}
+          error={errors.description}
+          label="Description"
+          onChange={(value) => onUpdate('description', value)}
+          value={form.description}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.sourceUrl}
+          label="Source URL"
+          onChange={(value) => onUpdate('sourceUrl', value)}
+          value={form.sourceUrl}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.sourceLabel}
+          label="Source label"
+          onChange={(value) => onUpdate('sourceLabel', value)}
+          value={form.sourceLabel}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.sourceCheckedAt}
+          label="Source checked date"
+          onChange={(value) => onUpdate('sourceCheckedAt', value)}
+          type="date"
+          value={form.sourceCheckedAt}
+        />
+        <AdminSelect
+          disabled={isDisabled}
+          error={errors.verificationStatus}
+          label="Source confidence"
+          onChange={(value) => onUpdate('verificationStatus', value)}
+          options={options.verificationStatuses}
+          value={form.verificationStatus}
+        />
+        <AdminInput
+          disabled={isDisabled}
+          error={errors.displayOrder}
+          label="Display order"
+          onChange={(value) => onUpdate('displayOrder', value)}
+          type="number"
+          value={form.displayOrder}
+        />
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <input
+            checked={form.dcFastCharging}
+            className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+            disabled={isDisabled}
+            onChange={(event) => onUpdate('dcFastCharging', event.target.checked)}
+            type="checkbox"
+          />
+          DC fast charging
+        </label>
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <input
+            checked={form.active}
+            className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+            disabled={isDisabled}
+            onChange={(event) => onUpdate('active', event.target.checked)}
+            type="checkbox"
+          />
+          Active in public EV Catalogue
+        </label>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <button
+          className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          disabled={isDisabled}
+          onClick={onSave}
+          type="button"
+        >
+          {isSaving ? 'Saving...' : formMode === 'create' ? 'Add EV' : 'Save EV'}
+        </button>
+        <button
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isSaving}
+          onClick={onCancel}
+          type="button"
+        >
+          Cancel
+        </button>
+      </div>
+    </aside>
+  );
 };
 
 const ChargerFormPanel = ({
