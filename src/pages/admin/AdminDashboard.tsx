@@ -220,7 +220,11 @@ type ModerationDraft = {
   moderationReason: string;
 };
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100];
+
+const primaryButtonClass =
+  'rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300';
 
 const initialChargerForm: ChargerFormState = {
   chargerTypeId: '',
@@ -614,7 +618,7 @@ const hasNextPage = <T,>(pageState: PageState<T>) => {
     return pageState.page + 1 < pageState.totalPages;
   }
 
-  return pageState.items.length === PAGE_SIZE;
+  return pageState.items.length === DEFAULT_PAGE_SIZE;
 };
 
 const hasNextPaginatedPage = <T,>(pageState: PageState<T>) =>
@@ -633,6 +637,8 @@ const AdminDashboard = () => {
   );
   const [vehiclePage, setVehiclePage] = useState<PageState<AdminVehicle>>(emptyPage<AdminVehicle>());
   const [chargerPage, setChargerPage] = useState<PageState<AdminCharger>>(emptyPage<AdminCharger>());
+  const [vehiclePageSize, setVehiclePageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [chargerPageSize, setChargerPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -724,7 +730,7 @@ const AdminDashboard = () => {
 
     try {
       const payload = await adminApiClient.get<PagePayload<Lead> | Lead[]>(
-        `/api/v1/admin/leads?page=${page}&size=${PAGE_SIZE}`,
+        `/api/v1/admin/leads?page=${page}&size=${DEFAULT_PAGE_SIZE}`,
       );
       setLeadPage(normalizePage(payload, page));
     } catch (error) {
@@ -737,7 +743,7 @@ const AdminDashboard = () => {
 
     try {
       const payload = await adminApiClient.get<PagePayload<ContactSubmission> | ContactSubmission[]>(
-        `/api/v1/admin/contact-submissions?page=${page}&size=${PAGE_SIZE}`,
+        `/api/v1/admin/contact-submissions?page=${page}&size=${DEFAULT_PAGE_SIZE}`,
       );
       setContactPage(normalizePage(payload, page));
     } catch (error) {
@@ -755,7 +761,7 @@ const AdminDashboard = () => {
     try {
       const payload = await adminApiClient.listVehicleReviews<PagePayload<VehicleReview> | VehicleReview[]>({
         page,
-        size: PAGE_SIZE,
+        size: DEFAULT_PAGE_SIZE,
         reviewStatus: reviewStatus === 'all' ? undefined : reviewStatus,
         vehicleId: vehicleId.trim() || undefined,
       });
@@ -791,7 +797,7 @@ const AdminDashboard = () => {
     try {
       const payload = await adminApiClient.listChargerFeedback<PagePayload<ChargerFeedback> | ChargerFeedback[]>({
         page,
-        size: PAGE_SIZE,
+        size: DEFAULT_PAGE_SIZE,
         feedbackStatus: feedbackStatus === 'all' ? undefined : feedbackStatus,
         chargerId: chargerId.trim() || undefined,
       });
@@ -821,13 +827,14 @@ const AdminDashboard = () => {
     brandId = vehicleBrandFilter,
     chargerTypeId = vehicleChargerTypeFilter,
     verificationStatus = vehicleVerificationStatusFilter,
+    size = vehiclePageSize,
   ) => {
     setVehiclePage((current) => ({ ...current, page, isLoading: true, error: null }));
 
     try {
       const payload = await adminApiClient.listVehicles<PagePayload<AdminVehicle> | AdminVehicle[]>({
         page,
-        size: PAGE_SIZE,
+        size,
         active: active === 'all' ? undefined : active,
         type: type === 'all' ? undefined : type,
         brandId: brandId === 'all' ? undefined : brandId,
@@ -846,13 +853,14 @@ const AdminDashboard = () => {
     city = chargerCityFilter,
     status = chargerStatusFilter,
     verificationStatus = chargerVerificationStatusFilter,
+    size = chargerPageSize,
   ) => {
     setChargerPage((current) => ({ ...current, page, isLoading: true, error: null }));
 
     try {
       const payload = await adminApiClient.listChargers<PagePayload<AdminCharger> | AdminCharger[]>({
         page,
-        size: PAGE_SIZE,
+        size,
         active: active === 'all' ? undefined : active,
         city: city.trim() || undefined,
         status: status === 'all' ? undefined : status,
@@ -1066,6 +1074,21 @@ const AdminDashboard = () => {
       vehicleBrandFilter,
       vehicleChargerTypeFilter,
       vehicleVerificationStatusFilter,
+      vehiclePageSize,
+    );
+  };
+
+  const handleVehiclePageSizeChange = (nextPageSize: number) => {
+    const safePageSize = Math.min(nextPageSize, 100);
+    setVehiclePageSize(safePageSize);
+    void loadVehicles(
+      0,
+      vehicleActiveFilter,
+      vehicleTypeFilter,
+      vehicleBrandFilter,
+      vehicleChargerTypeFilter,
+      vehicleVerificationStatusFilter,
+      safePageSize,
     );
   };
 
@@ -1175,6 +1198,20 @@ const AdminDashboard = () => {
       chargerCityFilter,
       chargerStatusFilter,
       chargerVerificationStatusFilter,
+      chargerPageSize,
+    );
+  };
+
+  const handleChargerPageSizeChange = (nextPageSize: number) => {
+    const safePageSize = Math.min(nextPageSize, 100);
+    setChargerPageSize(safePageSize);
+    void loadChargers(
+      0,
+      chargerActiveFilter,
+      chargerCityFilter,
+      chargerStatusFilter,
+      chargerVerificationStatusFilter,
+      safePageSize,
     );
   };
 
@@ -1528,7 +1565,7 @@ const AdminDashboard = () => {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Admin sections">
+      <div className="flex flex-wrap items-start gap-3" role="tablist" aria-label="Admin sections">
         <button
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
             activeSection === 'leads' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
@@ -1547,48 +1584,60 @@ const AdminDashboard = () => {
         >
           Contact Submissions
         </button>
-        <button
-          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-            activeSection === 'vehicleReviews' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
-          }`}
-          onClick={() => setActiveSection('vehicleReviews')}
-          type="button"
-        >
-          Vehicle Reviews
-        </button>
-        <button
-          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-            activeSection === 'vehicles' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
-          }`}
-          onClick={() => {
-            setActiveSection('vehicles');
-            setVehicleManagementView('list');
-          }}
-          type="button"
-        >
-          EV Catalogue
-        </button>
-        <button
-          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-            activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
-          }`}
-          onClick={() => {
-            setActiveSection('chargers');
-            setChargerManagementView('list');
-          }}
-          type="button"
-        >
-          Chargers
-        </button>
-        <button
-          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-            activeSection === 'chargerFeedback' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
-          }`}
-          onClick={() => setActiveSection('chargerFeedback')}
-          type="button"
-        >
-          Charger User Feedback
-        </button>
+        <div className="rounded-lg border border-slate-200 bg-white p-2">
+          <p className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">EV Catalogue</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                activeSection === 'vehicles' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+              onClick={() => {
+                setActiveSection('vehicles');
+                setVehicleManagementView('list');
+              }}
+              type="button"
+            >
+              EV Records
+            </button>
+            <button
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                activeSection === 'vehicleReviews' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+              onClick={() => setActiveSection('vehicleReviews')}
+              type="button"
+            >
+              Reviews
+            </button>
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-2">
+          <p className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Chargers</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+              onClick={() => {
+                setActiveSection('chargers');
+                setChargerManagementView('list');
+              }}
+              type="button"
+            >
+              Charger Records
+            </button>
+            <button
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                activeSection === 'chargerFeedback'
+                  ? 'bg-emerald-700 text-white'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+              onClick={() => setActiveSection('chargerFeedback')}
+              type="button"
+            >
+              Feedback
+            </button>
+          </div>
+        </div>
       </div>
 
       {activeSection === 'leads' ? (
@@ -1676,6 +1725,7 @@ const AdminDashboard = () => {
             onPrevious={() => void loadLeads(leadPage.page - 1)}
             page={leadPage.page}
             showNext={hasNextPage(leadPage)}
+            totalPages={leadPage.totalPages}
           />
           {selectedLead ? (
             <DetailsPanel
@@ -1788,6 +1838,7 @@ const AdminDashboard = () => {
             onPrevious={() => void loadContacts(contactPage.page - 1)}
             page={contactPage.page}
             showNext={hasNextPage(contactPage)}
+            totalPages={contactPage.totalPages}
           />
           {selectedContact ? (
             <DetailsPanel
@@ -1829,7 +1880,7 @@ const AdminDashboard = () => {
                 onChange={(event) => handleVehicleReviewStatusFilterChange(event.target.value)}
                 value={vehicleReviewStatusFilter}
               >
-                <option value="all">All statuses</option>
+                <option value="all">All</option>
                 {vehicleReviewStatusOptions.map((status) => (
                   <option key={status.value} value={status.value}>
                     {status.label}
@@ -1848,7 +1899,7 @@ const AdminDashboard = () => {
                   value={vehicleReviewVehicleIdFilter}
                 />
                 <button
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className={primaryButtonClass}
                   onClick={handleVehicleReviewVehicleIdFilterSubmit}
                   type="button"
                 >
@@ -1861,6 +1912,14 @@ const AdminDashboard = () => {
           {vehicleReviewStatusOptionsError ? <Alert message={vehicleReviewStatusOptionsError} /> : null}
           {statusError ? <Alert message={statusError} /> : null}
           {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
+          <Pagination
+            isLoading={vehicleReviewPage.isLoading}
+            onNext={() => void loadVehicleReviews(vehicleReviewPage.page + 1)}
+            onPrevious={() => void loadVehicleReviews(vehicleReviewPage.page - 1)}
+            page={vehicleReviewPage.page}
+            showNext={hasNextPage(vehicleReviewPage)}
+            totalPages={vehicleReviewPage.totalPages}
+          />
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -1974,6 +2033,7 @@ const AdminDashboard = () => {
             onPrevious={() => void loadVehicleReviews(vehicleReviewPage.page - 1)}
             page={vehicleReviewPage.page}
             showNext={hasNextPage(vehicleReviewPage)}
+            totalPages={vehicleReviewPage.totalPages}
           />
         </section>
       ) : activeSection === 'vehicles' ? (
@@ -1995,13 +2055,13 @@ const AdminDashboard = () => {
               <div className="flex items-center gap-2">
                 <button
                   aria-label="Add new EV"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-xl font-semibold leading-none text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="grid h-10 w-10 place-items-center rounded-full bg-emerald-700 text-2xl font-semibold leading-none text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                   disabled={Boolean(vehicleFormOptionsError) || isVehicleFormOptionsLoading}
                   onClick={startCreateVehicle}
                   title="Add new EV"
                   type="button"
                 >
-                  +
+                  <span className="block leading-none">+</span>
                 </button>
                 <button
                   className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -2032,7 +2092,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setVehicleActiveFilter(event.target.value)}
                     value={vehicleActiveFilter}
                   >
-                    <option value="all">All records</option>
+                    <option value="all">All</option>
                     <option value="true">Active only</option>
                     <option value="false">Inactive only</option>
                   </select>
@@ -2045,7 +2105,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setVehicleTypeFilter(event.target.value)}
                     value={vehicleTypeFilter}
                   >
-                    <option value="all">All types</option>
+                    <option value="all">All</option>
                     {vehicleFormOptions.vehicleTypes.map((type) => (
                       <option key={type.value} value={type.value}>
                         {type.label}
@@ -2061,7 +2121,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setVehicleBrandFilter(event.target.value)}
                     value={vehicleBrandFilter}
                   >
-                    <option value="all">All brands</option>
+                    <option value="all">All</option>
                     {vehicleFormOptions.brands.map((brand) => (
                       <option key={brand.value} value={brand.value}>
                         {brand.label}
@@ -2077,7 +2137,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setVehicleChargerTypeFilter(event.target.value)}
                     value={vehicleChargerTypeFilter}
                   >
-                    <option value="all">All charger types</option>
+                    <option value="all">All</option>
                     {vehicleFormOptions.chargerTypes.map((chargerType) => (
                       <option key={chargerType.value} value={chargerType.value}>
                         {chargerType.label}
@@ -2094,7 +2154,7 @@ const AdminDashboard = () => {
                       onChange={(event) => setVehicleVerificationStatusFilter(event.target.value)}
                       value={vehicleVerificationStatusFilter}
                     >
-                      <option value="all">All source confidence</option>
+                      <option value="all">All</option>
                       {vehicleFormOptions.verificationStatuses.map((status) => (
                         <option key={status.value} value={status.value}>
                           {status.label}
@@ -2102,7 +2162,7 @@ const AdminDashboard = () => {
                       ))}
                     </select>
                     <button
-                      className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      className={primaryButtonClass}
                       onClick={handleVehicleFiltersApply}
                       type="button"
                     >
@@ -2110,6 +2170,21 @@ const AdminDashboard = () => {
                     </button>
                   </div>
                 </label>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <PageSizeSelect
+                  disabled={vehiclePage.isLoading}
+                  onChange={handleVehiclePageSizeChange}
+                  value={vehiclePageSize}
+                />
+                <Pagination
+                  isLoading={vehiclePage.isLoading}
+                  onNext={() => void loadVehicles(vehiclePage.page + 1)}
+                  onPrevious={() => void loadVehicles(vehiclePage.page - 1)}
+                  page={vehiclePage.page}
+                  showNext={hasNextPaginatedPage(vehiclePage)}
+                  totalPages={vehiclePage.totalPages}
+                />
               </div>
               <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
@@ -2171,6 +2246,7 @@ const AdminDashboard = () => {
                 onPrevious={() => void loadVehicles(vehiclePage.page - 1)}
                 page={vehiclePage.page}
                 showNext={hasNextPaginatedPage(vehiclePage)}
+                totalPages={vehiclePage.totalPages}
               />
             </div>
           ) : (
@@ -2209,13 +2285,13 @@ const AdminDashboard = () => {
               <div className="flex items-center gap-2">
                 <button
                   aria-label="Add new charger"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-xl font-semibold leading-none text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="grid h-10 w-10 place-items-center rounded-full bg-emerald-700 text-2xl font-semibold leading-none text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                   disabled={Boolean(chargerFormOptionsError) || isChargerFormOptionsLoading}
                   onClick={startCreateCharger}
                   title="Add new charger"
                   type="button"
                 >
-                  +
+                  <span className="block leading-none">+</span>
                 </button>
                 <button
                   className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -2246,7 +2322,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setChargerActiveFilter(event.target.value)}
                     value={chargerActiveFilter}
                   >
-                    <option value="all">All records</option>
+                    <option value="all">All</option>
                     <option value="true">Active only</option>
                     <option value="false">Inactive only</option>
                   </select>
@@ -2259,7 +2335,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setChargerStatusFilter(event.target.value)}
                     value={chargerStatusFilter}
                   >
-                    <option value="all">All statuses</option>
+                    <option value="all">All</option>
                     {chargerFormOptions.statuses.map((status) => (
                       <option key={status.value} value={status.value}>
                         {status.label}
@@ -2275,7 +2351,7 @@ const AdminDashboard = () => {
                     onChange={(event) => setChargerVerificationStatusFilter(event.target.value)}
                     value={chargerVerificationStatusFilter}
                   >
-                    <option value="all">All source confidence</option>
+                    <option value="all">All</option>
                     {chargerFormOptions.verificationStatuses.map((status) => (
                       <option key={status.value} value={status.value}>
                         {status.label}
@@ -2294,7 +2370,7 @@ const AdminDashboard = () => {
                       value={chargerCityFilter}
                     />
                     <button
-                      className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      className={primaryButtonClass}
                       onClick={handleChargerFiltersApply}
                       type="button"
                     >
@@ -2302,6 +2378,21 @@ const AdminDashboard = () => {
                     </button>
                   </div>
                 </label>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <PageSizeSelect
+                  disabled={chargerPage.isLoading}
+                  onChange={handleChargerPageSizeChange}
+                  value={chargerPageSize}
+                />
+                <Pagination
+                  isLoading={chargerPage.isLoading}
+                  onNext={() => void loadChargers(chargerPage.page + 1)}
+                  onPrevious={() => void loadChargers(chargerPage.page - 1)}
+                  page={chargerPage.page}
+                  showNext={hasNextPaginatedPage(chargerPage)}
+                  totalPages={chargerPage.totalPages}
+                />
               </div>
               <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
@@ -2359,6 +2450,7 @@ const AdminDashboard = () => {
                 onPrevious={() => void loadChargers(chargerPage.page - 1)}
                 page={chargerPage.page}
                 showNext={hasNextPaginatedPage(chargerPage)}
+                totalPages={chargerPage.totalPages}
               />
             </div>
           ) : (
@@ -2400,7 +2492,7 @@ const AdminDashboard = () => {
                 onChange={(event) => handleChargerFeedbackStatusFilterChange(event.target.value)}
                 value={chargerFeedbackStatusFilter}
               >
-                <option value="all">All statuses</option>
+                <option value="all">All</option>
                 {chargerFeedbackStatusOptions.map((status) => (
                   <option key={status.value} value={status.value}>
                     {status.label}
@@ -2419,7 +2511,7 @@ const AdminDashboard = () => {
                   value={chargerFeedbackChargerIdFilter}
                 />
                 <button
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className={primaryButtonClass}
                   onClick={handleChargerFeedbackChargerIdFilterSubmit}
                   type="button"
                 >
@@ -2432,6 +2524,14 @@ const AdminDashboard = () => {
           {chargerFeedbackStatusOptionsError ? <Alert message={chargerFeedbackStatusOptionsError} /> : null}
           {statusError ? <Alert message={statusError} /> : null}
           {statusMessage ? <SuccessMessage message={statusMessage} /> : null}
+          <Pagination
+            isLoading={chargerFeedbackPage.isLoading}
+            onNext={() => void loadChargerFeedback(chargerFeedbackPage.page + 1)}
+            onPrevious={() => void loadChargerFeedback(chargerFeedbackPage.page - 1)}
+            page={chargerFeedbackPage.page}
+            showNext={hasNextPage(chargerFeedbackPage)}
+            totalPages={chargerFeedbackPage.totalPages}
+          />
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -2531,6 +2631,7 @@ const AdminDashboard = () => {
             onPrevious={() => void loadChargerFeedback(chargerFeedbackPage.page - 1)}
             page={chargerFeedbackPage.page}
             showNext={hasNextPage(chargerFeedbackPage)}
+            totalPages={chargerFeedbackPage.totalPages}
           />
         </section>
       )}
@@ -3064,11 +3165,12 @@ type PaginationProps = {
   isLoading: boolean;
   page: number;
   showNext: boolean;
+  totalPages?: number;
   onNext: () => void;
   onPrevious: () => void;
 };
 
-const Pagination = ({ isLoading, page, showNext, onNext, onPrevious }: PaginationProps) => (
+const Pagination = ({ isLoading, page, showNext, totalPages, onNext, onPrevious }: PaginationProps) => (
   <div className="flex items-center justify-between gap-3 text-sm">
     <button
       className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -3078,7 +3180,10 @@ const Pagination = ({ isLoading, page, showNext, onNext, onPrevious }: Paginatio
     >
       Previous
     </button>
-    <span className="text-slate-500">Page {page + 1}</span>
+    <span className="text-slate-500">
+      Page {page + 1}
+      {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
+    </span>
     <button
       className="rounded-md border border-slate-300 px-3 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
       disabled={isLoading || !showNext}
@@ -3088,6 +3193,30 @@ const Pagination = ({ isLoading, page, showNext, onNext, onPrevious }: Paginatio
       Next
     </button>
   </div>
+);
+
+type PageSizeSelectProps = {
+  disabled: boolean;
+  onChange: (pageSize: number) => void;
+  value: number;
+};
+
+const PageSizeSelect = ({ disabled, onChange, value }: PageSizeSelectProps) => (
+  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+    Records per page
+    <select
+      className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100"
+      disabled={disabled}
+      onChange={(event) => onChange(Number(event.target.value))}
+      value={value}
+    >
+      {PAGE_SIZE_OPTIONS.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  </label>
 );
 
 type DetailsPanelProps = {

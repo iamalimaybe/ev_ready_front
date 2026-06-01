@@ -123,8 +123,25 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   creating, and editing vehicle records through backend admin APIs and backend form options.
 - Admin Dashboard now lazy-loads as a separate production chunk so the main Vite bundle stays below
   the chunk-size warning threshold.
+- Admin Dashboard navigation now groups EV Catalogue records/reviews and charger records/feedback,
+  with simplified filter labels, top pagination, page-size controls for record management tables,
+  primary Apply buttons, centered round add buttons, and admin go-to-top access.
 
 ## Completed
+
+### 2026-05-31 - Admin Dashboard Navigation and Listing Controls
+
+Grouped Admin Dashboard navigation so EV Catalogue contains EV Records and Reviews, and Chargers
+contains Charger Records and Feedback. Simplified admin filter default labels to `All`, made filter
+Apply buttons use the primary admin action style, added top pagination to paginated admin listing
+tables, added 10/20/30/50/100 page-size controls for EV and charger record management, centered the
+round add buttons, and allowed the existing go-to-top button on admin pages.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/components/Layout.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
 
 ### 2026-05-31 - Admin Dashboard Chunk Split
 
