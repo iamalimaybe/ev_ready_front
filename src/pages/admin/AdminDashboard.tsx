@@ -1599,10 +1599,10 @@ const AdminDashboard = () => {
         >
           Contact Submissions
         </button>
-        <div className="flex flex-col gap-2">
+        <div className="relative">
           <button
-            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-              isEvSectionActive ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+            className={`w-full rounded-md px-4 py-2 text-left text-sm font-semibold transition md:w-auto ${
+              showEvSubmenu ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
             onClick={() => setOpenMenuGroup((group) => (group === 'ev' ? null : 'ev'))}
             type="button"
@@ -1610,9 +1610,9 @@ const AdminDashboard = () => {
             EV
           </button>
           {showEvSubmenu ? (
-            <div className="flex flex-wrap gap-2 pl-2">
+            <div className="mt-1 grid gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-sm md:absolute md:left-0 md:z-10 md:min-w-40">
               <button
-                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                className={`rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
                   activeSection === 'vehicles' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
                 }`}
                 onClick={() => {
@@ -1625,7 +1625,7 @@ const AdminDashboard = () => {
                 Catalogue
               </button>
               <button
-                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                className={`rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
                   activeSection === 'vehicleReviews' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
                 }`}
                 onClick={() => {
@@ -1639,10 +1639,10 @@ const AdminDashboard = () => {
             </div>
           ) : null}
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="relative">
           <button
-            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-              isChargerSectionActive ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+            className={`w-full rounded-md px-4 py-2 text-left text-sm font-semibold transition md:w-auto ${
+              showChargerSubmenu ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
             onClick={() =>
               setOpenMenuGroup((group) => (group === 'chargers' ? null : 'chargers'))
@@ -1652,9 +1652,9 @@ const AdminDashboard = () => {
             Chargers
           </button>
           {showChargerSubmenu ? (
-            <div className="flex flex-wrap gap-2 pl-2">
+            <div className="mt-1 grid gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-sm md:absolute md:left-0 md:z-10 md:min-w-40">
               <button
-                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                className={`rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
                   activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
                 }`}
                 onClick={() => {
@@ -1667,7 +1667,7 @@ const AdminDashboard = () => {
                 Catalogue
               </button>
               <button
-                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                className={`rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
                   activeSection === 'chargerFeedback'
                     ? 'bg-emerald-700 text-white'
                     : 'text-slate-700 hover:bg-slate-100'

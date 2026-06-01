@@ -479,19 +479,19 @@ export default function ChargerDirectory() {
           support, access, pricing, and operation before travel.
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700 sm:w-auto"
-            type="button"
+        <div className="flex items-center justify-between gap-3 text-sm text-slate-600">
+          <span>
+            {isLoading
+              ? 'Loading charger directory...'
+              : errorMessage
+                ? 'Charger directory'
+                : `Showing ${chargers.length} of ${totalElements} chargers`}
+          </span>
+          <FilterToggleButton
+            activeFilterCount={activeFilterCount}
+            isOpen={areFiltersOpen}
             onClick={() => setAreFiltersOpen((isOpen) => !isOpen)}
-          >
-            {areFiltersOpen ? 'Hide filters' : 'Show filters'}
-          </button>
-          {!areFiltersOpen && activeFilterCount > 0 ? (
-            <p className="text-sm text-slate-500">
-              {activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'}
-            </p>
-          ) : null}
+          />
         </div>
 
         {areFiltersOpen ? (
@@ -599,12 +599,6 @@ export default function ChargerDirectory() {
           </div>
         ) : chargers.length > 0 ? (
           <div className="space-y-4">
-            <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                Showing {chargers.length} of {totalElements} chargers
-              </span>
-            </div>
-
             <div className="grid gap-4 lg:grid-cols-2">
               {chargers.map((charger) => (
                 <ChargerCard
@@ -834,6 +828,51 @@ function formatEnumLabel(value: string) {
     .split('_')
     .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
     .join(' ');
+}
+
+type FilterToggleButtonProps = {
+  activeFilterCount: number;
+  isOpen: boolean;
+  onClick: () => void;
+};
+
+function FilterToggleButton({ activeFilterCount, isOpen, onClick }: FilterToggleButtonProps) {
+  const hasActiveFilters = activeFilterCount > 0;
+
+  return (
+    <button
+      aria-label={isOpen ? 'Hide filters' : 'Show filters'}
+      aria-pressed={isOpen}
+      className={[
+        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition',
+        isOpen || hasActiveFilters
+          ? 'border-brand-500 bg-brand-50 text-brand-700'
+          : 'border-slate-300 bg-white text-slate-700 hover:border-brand-500 hover:text-brand-700',
+      ].join(' ')}
+      onClick={onClick}
+      type="button"
+    >
+      <FilterIcon />
+    </button>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      focusable="false"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" />
+    </svg>
+  );
 }
 
 function getActiveFilterCount(filters: FilterValues) {
