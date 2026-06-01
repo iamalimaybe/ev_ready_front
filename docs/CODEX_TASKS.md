@@ -126,8 +126,29 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
 - Admin Dashboard navigation now groups EV Catalogue records/reviews and charger records/feedback,
   with simplified filter labels, top pagination, page-size controls for record management tables,
   primary Apply buttons, centered round add buttons, and admin go-to-top access.
+- Long public/admin review and feedback text now scrolls inside its own text block, public EV
+  Catalogue and Charger Directory filters are collapsed by default, and admin grouped navigation
+  now uses compact EV/Chargers parent items with submenu buttons.
 
 ## Completed
+
+### 2026-06-01 - Review Text Overflow, Public Filters, and Admin Submenus
+
+Limited long approved public vehicle review and charger feedback text to internally scrollable
+blocks, and applied the same pattern to admin vehicle review and charger feedback moderation table
+text. Public EV Catalogue and Charger Directory filters now start collapsed behind Show/Hide
+filters controls while preserving existing filter state and backend query behavior. Admin Dashboard
+navigation now presents Get Help Leads, Contact Submissions, EV, and Chargers as compact main items,
+with EV and Chargers revealing Catalogue/Reviews and Catalogue/Feedback submenu buttons.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
 
 ### 2026-05-31 - Admin Dashboard Navigation and Listing Controls
 

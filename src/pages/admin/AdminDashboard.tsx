@@ -212,6 +212,7 @@ type PageState<T> = {
 };
 
 type AdminSection = 'leads' | 'contacts' | 'vehicles' | 'vehicleReviews' | 'chargerFeedback' | 'chargers';
+type AdminMenuGroup = 'ev' | 'chargers' | null;
 type ChargerManagementView = 'list' | 'create' | 'edit';
 type VehicleManagementView = 'list' | 'create' | 'edit';
 
@@ -629,6 +630,7 @@ const AdminDashboard = () => {
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
   const [adminUser, setAdminUser] = useState<AdminSession | null>(null);
   const [activeSection, setActiveSection] = useState<AdminSection>('leads');
+  const [openMenuGroup, setOpenMenuGroup] = useState<AdminMenuGroup>(null);
   const [leadPage, setLeadPage] = useState<PageState<Lead>>(emptyPage<Lead>());
   const [contactPage, setContactPage] = useState<PageState<ContactSubmission>>(emptyPage<ContactSubmission>());
   const [vehicleReviewPage, setVehicleReviewPage] = useState<PageState<VehicleReview>>(emptyPage<VehicleReview>());
@@ -1044,6 +1046,7 @@ const AdminDashboard = () => {
       setAdminUser(null);
       setSelectedLead(null);
       setSelectedContact(null);
+      setOpenMenuGroup(null);
       navigate('/admin/login');
     }
   };
@@ -1515,6 +1518,12 @@ const AdminDashboard = () => {
     }
   };
 
+  const isEvSectionActive = activeSection === 'vehicles' || activeSection === 'vehicleReviews';
+  const isChargerSectionActive =
+    activeSection === 'chargers' || activeSection === 'chargerFeedback';
+  const showEvSubmenu = openMenuGroup === 'ev' || isEvSectionActive;
+  const showChargerSubmenu = openMenuGroup === 'chargers' || isChargerSectionActive;
+
   if (authState === 'checking') {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-12">
@@ -1570,7 +1579,10 @@ const AdminDashboard = () => {
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
             activeSection === 'leads' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
           }`}
-          onClick={() => setActiveSection('leads')}
+          onClick={() => {
+            setActiveSection('leads');
+            setOpenMenuGroup(null);
+          }}
           type="button"
         >
           Get Help Leads
@@ -1579,64 +1591,97 @@ const AdminDashboard = () => {
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
             activeSection === 'contacts' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
           }`}
-          onClick={() => setActiveSection('contacts')}
+          onClick={() => {
+            setActiveSection('contacts');
+            setOpenMenuGroup(null);
+          }}
           type="button"
         >
           Contact Submissions
         </button>
-        <div className="rounded-lg border border-slate-200 bg-white p-2">
-          <p className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">EV Catalogue</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-                activeSection === 'vehicles' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
-              }`}
-              onClick={() => {
-                setActiveSection('vehicles');
-                setVehicleManagementView('list');
-              }}
-              type="button"
-            >
-              EV Records
-            </button>
-            <button
-              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-                activeSection === 'vehicleReviews' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
-              }`}
-              onClick={() => setActiveSection('vehicleReviews')}
-              type="button"
-            >
-              Reviews
-            </button>
-          </div>
+        <div className="flex flex-col gap-2">
+          <button
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+              isEvSectionActive ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+            }`}
+            onClick={() => setOpenMenuGroup((group) => (group === 'ev' ? null : 'ev'))}
+            type="button"
+          >
+            EV
+          </button>
+          {showEvSubmenu ? (
+            <div className="flex flex-wrap gap-2 pl-2">
+              <button
+                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  activeSection === 'vehicles' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+                onClick={() => {
+                  setActiveSection('vehicles');
+                  setOpenMenuGroup('ev');
+                  setVehicleManagementView('list');
+                }}
+                type="button"
+              >
+                Catalogue
+              </button>
+              <button
+                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  activeSection === 'vehicleReviews' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+                onClick={() => {
+                  setActiveSection('vehicleReviews');
+                  setOpenMenuGroup('ev');
+                }}
+                type="button"
+              >
+                Reviews
+              </button>
+            </div>
+          ) : null}
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-2">
-          <p className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Chargers</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-                activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
-              }`}
-              onClick={() => {
-                setActiveSection('chargers');
-                setChargerManagementView('list');
-              }}
-              type="button"
-            >
-              Charger Records
-            </button>
-            <button
-              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-                activeSection === 'chargerFeedback'
-                  ? 'bg-emerald-700 text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-              onClick={() => setActiveSection('chargerFeedback')}
-              type="button"
-            >
-              Feedback
-            </button>
-          </div>
+        <div className="flex flex-col gap-2">
+          <button
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+              isChargerSectionActive ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
+            }`}
+            onClick={() =>
+              setOpenMenuGroup((group) => (group === 'chargers' ? null : 'chargers'))
+            }
+            type="button"
+          >
+            Chargers
+          </button>
+          {showChargerSubmenu ? (
+            <div className="flex flex-wrap gap-2 pl-2">
+              <button
+                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  activeSection === 'chargers' ? 'bg-emerald-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+                onClick={() => {
+                  setActiveSection('chargers');
+                  setOpenMenuGroup('chargers');
+                  setChargerManagementView('list');
+                }}
+                type="button"
+              >
+                Catalogue
+              </button>
+              <button
+                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  activeSection === 'chargerFeedback'
+                    ? 'bg-emerald-700 text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+                onClick={() => {
+                  setActiveSection('chargerFeedback');
+                  setOpenMenuGroup('chargers');
+                }}
+                type="button"
+              >
+                Feedback
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1951,7 +1996,11 @@ const AdminDashboard = () => {
                       <td className="px-4 py-3">{formatValue(review.id)}</td>
                       <td className="px-4 py-3">{formatValue(review.vehicleId)}</td>
                       <td className="px-4 py-3">{formatValue(review.rating)}</td>
-                      <td className="max-w-sm whitespace-pre-wrap px-4 py-3">{formatValue(review.reviewText)}</td>
+                      <td className="max-w-sm px-4 py-3">
+                        <div className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-50 px-3 py-2">
+                          {formatValue(review.reviewText)}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{formatValue(review.displayName)}</td>
                       <td className="px-4 py-3">{formatValue(review.city)}</td>
                       <td className="px-4 py-3">{formatValue(review.experienceType)}</td>
@@ -2563,7 +2612,11 @@ const AdminDashboard = () => {
                       <td className="px-4 py-3">{formatValue(feedback.chargerName)}</td>
                       <td className="px-4 py-3">{formatValue(feedback.rating)}</td>
                       <td className="px-4 py-3">{formatValue(feedback.feedbackType)}</td>
-                      <td className="max-w-sm whitespace-pre-wrap px-4 py-3">{formatValue(feedback.message)}</td>
+                      <td className="max-w-sm px-4 py-3">
+                        <div className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-50 px-3 py-2">
+                          {formatValue(feedback.message)}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{formatValue(feedback.displayName)}</td>
                       <td className="px-4 py-3">{formatValue(feedback.city)}</td>
                       <td className="px-4 py-3">{formatValue(feedback.reportedByContact)}</td>

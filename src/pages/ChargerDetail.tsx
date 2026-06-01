@@ -732,7 +732,9 @@ function ApprovedFeedbackCard({ feedback }: { feedback: PublicChargerFeedback })
       </div>
 
       {isMeaningfulString(feedback.message) ? (
-        <p className="mt-3 whitespace-pre-wrap text-slate-800">{feedback.message.trim()}</p>
+        <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-white px-3 py-2 text-slate-800">
+          {feedback.message.trim()}
+        </p>
       ) : (
         <p className="mt-3 text-slate-500">No message provided.</p>
       )}
