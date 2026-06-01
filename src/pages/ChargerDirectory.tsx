@@ -252,6 +252,7 @@ export default function ChargerDirectory() {
   const [cityOptionsErrorMessage, setCityOptionsErrorMessage] = useState<string | null>(null);
   const [hasLoadedCityOptions, setHasLoadedCityOptions] = useState(false);
   const [chargerTypesErrorMessage, setChargerTypesErrorMessage] = useState<string | null>(null);
+  const [areFiltersOpen, setAreFiltersOpen] = useState(false);
   const nextPageSentinelRef = useRef<HTMLDivElement | null>(null);
   const activeChargerQueryRef = useRef('');
   const isFetchingNextChargerPageRef = useRef(false);
@@ -264,6 +265,7 @@ export default function ChargerDirectory() {
     filters.status,
   ]);
   const hasNextPage = loadedPage + 1 < totalPages;
+  const activeFilterCount = getActiveFilterCount(filters);
 
   useEffect(() => {
     setFilters(getFiltersFromSearchParams(searchParams));
@@ -477,97 +479,114 @@ export default function ChargerDirectory() {
           support, access, pricing, and operation before travel.
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <label className="text-sm font-medium text-slate-800">
-            City
-            <select
-              className={selectInputClass}
-              value={filters.city}
-              onChange={(event) => updateFilter('city', event.target.value)}
-            >
-              <option value={allFilterValue}>All cities</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            {cityOptionsErrorMessage ? (
-              <span className="mt-2 block text-xs font-normal leading-5 text-amber-700">
-                City options could not be loaded. The charger list can still be viewed.
-              </span>
-            ) : hasLoadedCityOptions && cities.length === 0 ? (
-              <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">
-                City filters are not available yet.
-              </span>
-            ) : null}
-          </label>
-
-          <label className="text-sm font-medium text-slate-800">
-            Charger / connector type
-            <select
-              className={selectInputClass}
-              value={filters.chargerTypeId}
-              onChange={(event) => updateFilter('chargerTypeId', event.target.value)}
-            >
-              <option value={allFilterValue}>All types</option>
-              {chargerTypes.map((chargerType) => (
-                <option key={chargerType.id} value={chargerType.id}>
-                  {chargerType.name}
-                </option>
-              ))}
-            </select>
-            {chargerTypesErrorMessage ? (
-              <span className="mt-2 block text-xs font-normal leading-5 text-amber-700">
-                Charger types could not be loaded. Showing all types for now.
-              </span>
-            ) : null}
-          </label>
-
-          <label className="text-sm font-medium text-slate-800">
-            Charging type
-            <select
-              className={selectInputClass}
-              value={filters.chargingType}
-              onChange={(event) =>
-                updateFilter('chargingType', event.target.value as ChargingTypeFilter)
-              }
-            >
-              <option value="all">All</option>
-              {chargingTypeOptions.map((chargingType) => (
-                <option key={chargingType} value={chargingType}>
-                  {formatChargingTypeLabel(chargingType)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-sm font-medium text-slate-800">
-            Reported status
-            <select
-              className={selectInputClass}
-              value={filters.status}
-              onChange={(event) => updateFilter('status', event.target.value as ChargerStatusFilter)}
-            >
-              <option value={allFilterValue}>All statuses</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {formatEnumLabel(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="flex items-end">
-            <button
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700"
-              type="button"
-              onClick={clearFilters}
-            >
-              Clear filters
-            </button>
-          </div>
+        <div className="flex items-center justify-between gap-3 text-sm text-slate-600">
+          <span>
+            {isLoading
+              ? 'Loading charger directory...'
+              : errorMessage
+                ? 'Charger directory'
+                : `Showing ${chargers.length} of ${totalElements} chargers`}
+          </span>
+          <FilterToggleButton
+            activeFilterCount={activeFilterCount}
+            isOpen={areFiltersOpen}
+            onClick={() => setAreFiltersOpen((isOpen) => !isOpen)}
+          />
         </div>
+
+        {areFiltersOpen ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <label className="text-sm font-medium text-slate-800">
+              City
+              <select
+                className={selectInputClass}
+                value={filters.city}
+                onChange={(event) => updateFilter('city', event.target.value)}
+              >
+                <option value={allFilterValue}>All cities</option>
+                {cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+              {cityOptionsErrorMessage ? (
+                <span className="mt-2 block text-xs font-normal leading-5 text-amber-700">
+                  City options could not be loaded. The charger list can still be viewed.
+                </span>
+              ) : hasLoadedCityOptions && cities.length === 0 ? (
+                <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">
+                  City filters are not available yet.
+                </span>
+              ) : null}
+            </label>
+
+            <label className="text-sm font-medium text-slate-800">
+              Charger / connector type
+              <select
+                className={selectInputClass}
+                value={filters.chargerTypeId}
+                onChange={(event) => updateFilter('chargerTypeId', event.target.value)}
+              >
+                <option value={allFilterValue}>All types</option>
+                {chargerTypes.map((chargerType) => (
+                  <option key={chargerType.id} value={chargerType.id}>
+                    {chargerType.name}
+                  </option>
+                ))}
+              </select>
+              {chargerTypesErrorMessage ? (
+                <span className="mt-2 block text-xs font-normal leading-5 text-amber-700">
+                  Charger types could not be loaded. Showing all types for now.
+                </span>
+              ) : null}
+            </label>
+
+            <label className="text-sm font-medium text-slate-800">
+              Charging type
+              <select
+                className={selectInputClass}
+                value={filters.chargingType}
+                onChange={(event) =>
+                  updateFilter('chargingType', event.target.value as ChargingTypeFilter)
+                }
+              >
+                <option value="all">All</option>
+                {chargingTypeOptions.map((chargingType) => (
+                  <option key={chargingType} value={chargingType}>
+                    {formatChargingTypeLabel(chargingType)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium text-slate-800">
+              Reported status
+              <select
+                className={selectInputClass}
+                value={filters.status}
+                onChange={(event) => updateFilter('status', event.target.value as ChargerStatusFilter)}
+              >
+                <option value={allFilterValue}>All statuses</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {formatEnumLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-end">
+              <button
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700"
+                type="button"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {isLoading ? (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -580,12 +599,6 @@ export default function ChargerDirectory() {
           </div>
         ) : chargers.length > 0 ? (
           <div className="space-y-4">
-            <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                Showing {chargers.length} of {totalElements} chargers
-              </span>
-            </div>
-
             <div className="grid gap-4 lg:grid-cols-2">
               {chargers.map((charger) => (
                 <ChargerCard
@@ -815,4 +828,55 @@ function formatEnumLabel(value: string) {
     .split('_')
     .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
     .join(' ');
+}
+
+type FilterToggleButtonProps = {
+  activeFilterCount: number;
+  isOpen: boolean;
+  onClick: () => void;
+};
+
+function FilterToggleButton({ activeFilterCount, isOpen, onClick }: FilterToggleButtonProps) {
+  const hasActiveFilters = activeFilterCount > 0;
+
+  return (
+    <button
+      aria-label={isOpen ? 'Hide filters' : 'Show filters'}
+      aria-pressed={isOpen}
+      className={[
+        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition',
+        isOpen || hasActiveFilters
+          ? 'border-brand-500 bg-brand-50 text-brand-700'
+          : 'border-slate-300 bg-white text-slate-700 hover:border-brand-500 hover:text-brand-700',
+      ].join(' ')}
+      onClick={onClick}
+      type="button"
+    >
+      <FilterIcon />
+    </button>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      focusable="false"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" />
+    </svg>
+  );
+}
+
+function getActiveFilterCount(filters: FilterValues) {
+  return (Object.keys(initialFilters) as Array<keyof FilterValues>).filter(
+    (key) => filters[key] !== initialFilters[key],
+  ).length;
 }

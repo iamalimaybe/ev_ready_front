@@ -353,6 +353,7 @@ export default function VehicleCatalog() {
   const [isLoadingNextPage, setIsLoadingNextPage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [brandErrorMessage, setBrandErrorMessage] = useState<string | null>(null);
+  const [areFiltersOpen, setAreFiltersOpen] = useState(false);
   const nextPageSentinelRef = useRef<HTMLDivElement | null>(null);
   const activeVehicleQueryRef = useRef('');
   const isFetchingNextVehiclePageRef = useRef(false);
@@ -368,6 +369,7 @@ export default function VehicleCatalog() {
     filters.vehicleType,
   ]);
   const hasNextPage = loadedPage + 1 < totalPages;
+  const activeFilterCount = getActiveFilterCount(filters);
 
   useEffect(() => {
     setFilters(getFiltersFromSearchParams(searchParams));
@@ -570,137 +572,154 @@ export default function VehicleCatalog() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <label className="text-sm font-medium text-slate-800">
-            Bike or car
-            <select
-              className={selectInputClass}
-              value={filters.category}
-              onChange={(event) => updateCategory(event.target.value as CategoryFilter)}
-            >
-              <option value={allFilterValue}>All bikes and cars</option>
-              <option value="Bike">EV bikes only</option>
-              <option value="Car">EV cars only</option>
-            </select>
-          </label>
+        <div className="flex items-center justify-between gap-3 text-sm text-slate-600">
+          <span>
+            {isLoading
+              ? 'Loading EV catalogue...'
+              : errorMessage
+                ? 'EV catalogue'
+                : `Showing ${vehicles.length} of ${totalElements} vehicles`}
+          </span>
+          <FilterToggleButton
+            activeFilterCount={activeFilterCount}
+            isOpen={areFiltersOpen}
+            onClick={() => setAreFiltersOpen((isOpen) => !isOpen)}
+          />
+        </div>
 
-          <label className="text-sm font-medium text-slate-800">
-            Body style
-            <select
-              className={selectInputClass}
-              value={filters.vehicleType}
-              onChange={(event) => updateFilter('vehicleType', event.target.value)}
-            >
-              <option value={allFilterValue}>All vehicle types</option>
-              {vehicleTypes.map((vehicleType) => (
-                <option key={vehicleType} value={vehicleType}>
-                  {vehicleType}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-sm font-medium text-slate-800">
-            Brand
-            <select
-              className={selectInputClass}
-              value={filters.brandId}
-              onChange={(event) => updateFilter('brandId', event.target.value)}
-            >
-              <option value={allFilterValue}>All brands</option>
-              {brands.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.name}
-                </option>
-              ))}
-            </select>
-            {brandErrorMessage ? (
-              <span className="mt-2 block text-xs font-normal leading-5 text-amber-700">
-                Brand list could not be loaded. You can still view all vehicles.
-              </span>
-            ) : null}
-          </label>
-
-          <label className="text-sm font-medium text-slate-800">
-            Maximum price
-            <select
-              className={selectInputClass}
-              value={filters.price}
-              onChange={(event) => updateFilter('price', event.target.value as PriceFilter)}
-            >
-              <option value="all">Any price / No range</option>
-              <option value="under-100k">Under PKR 100,000</option>
-              <option value="under-200k">Under PKR 200,000</option>
-              <option value="under-300k">Under PKR 300,000</option>
-              <option value="under-400k">Under PKR 400,000</option>
-              <option value="under-500k">Under PKR 500,000</option>
-              <option value="under-600k">Under PKR 600,000</option>
-              <option value="under-700k">Under PKR 700,000</option>
-              <option value="under-800k">Under PKR 800,000</option>
-              <option value="under-900k">Under PKR 900,000</option>
-              <option value="under-1m">Under PKR 1,000,000</option>
-              <option value="under-1-5m">Under PKR 1,500,000</option>
-            </select>
-          </label>
-
-          <label className="text-sm font-medium text-slate-800">
-            Minimum city range
-            <select
-              className={selectInputClass}
-              value={filters.range}
-              onChange={(event) => updateFilter('range', event.target.value as RangeFilter)}
-            >
-              <option value="all">Any range</option>
-              <option value="50-plus">50 km or more</option>
-              <option value="80-plus">80 km or more</option>
-              <option value="150-plus">150 km or more</option>
-              <option value="250-plus">250 km or more</option>
-              <option value="350-plus">350 km or more</option>
-            </select>
-          </label>
-
-          {filters.category !== 'Bike' ? (
+        {areFiltersOpen ? (
+          <div className="grid gap-4 md:grid-cols-3">
             <label className="text-sm font-medium text-slate-800">
-              DC fast charging supported
+              Bike or car
               <select
                 className={selectInputClass}
-                value={filters.dcCharging}
-                onChange={(event) =>
-                  updateFilter('dcCharging', event.target.value as DcChargingFilter)
-                }
+                value={filters.category}
+                onChange={(event) => updateCategory(event.target.value as CategoryFilter)}
               >
-                <option value="all">All</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
+                <option value={allFilterValue}>All bikes and cars</option>
+                <option value="Bike">EV bikes only</option>
+                <option value="Car">EV cars only</option>
               </select>
             </label>
-          ) : null}
 
-          <label className="text-sm font-medium text-slate-800">
-            Sort by
-            <select
-              className={selectInputClass}
-              value={filters.sort}
-              onChange={(event) => updateFilter('sort', event.target.value as SortOption)}
-            >
-              <option value="recommended">Default / Recommended</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="range-desc">Range: High to Low</option>
-              <option value="range-asc">Range: Low to High</option>
-            </select>
-          </label>
+            <label className="text-sm font-medium text-slate-800">
+              Body style
+              <select
+                className={selectInputClass}
+                value={filters.vehicleType}
+                onChange={(event) => updateFilter('vehicleType', event.target.value)}
+              >
+                <option value={allFilterValue}>All vehicle types</option>
+                {vehicleTypes.map((vehicleType) => (
+                  <option key={vehicleType} value={vehicleType}>
+                    {vehicleType}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <div className="flex items-end">
-            <button
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700"
-              type="button"
-              onClick={clearFilters}
-            >
-              Clear filters
-            </button>
+            <label className="text-sm font-medium text-slate-800">
+              Brand
+              <select
+                className={selectInputClass}
+                value={filters.brandId}
+                onChange={(event) => updateFilter('brandId', event.target.value)}
+              >
+                <option value={allFilterValue}>All brands</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </select>
+              {brandErrorMessage ? (
+                <span className="mt-2 block text-xs font-normal leading-5 text-amber-700">
+                  Brand list could not be loaded. You can still view all vehicles.
+                </span>
+              ) : null}
+            </label>
+
+            <label className="text-sm font-medium text-slate-800">
+              Maximum price
+              <select
+                className={selectInputClass}
+                value={filters.price}
+                onChange={(event) => updateFilter('price', event.target.value as PriceFilter)}
+              >
+                <option value="all">Any price / No range</option>
+                <option value="under-100k">Under PKR 100,000</option>
+                <option value="under-200k">Under PKR 200,000</option>
+                <option value="under-300k">Under PKR 300,000</option>
+                <option value="under-400k">Under PKR 400,000</option>
+                <option value="under-500k">Under PKR 500,000</option>
+                <option value="under-600k">Under PKR 600,000</option>
+                <option value="under-700k">Under PKR 700,000</option>
+                <option value="under-800k">Under PKR 800,000</option>
+                <option value="under-900k">Under PKR 900,000</option>
+                <option value="under-1m">Under PKR 1,000,000</option>
+                <option value="under-1-5m">Under PKR 1,500,000</option>
+              </select>
+            </label>
+
+            <label className="text-sm font-medium text-slate-800">
+              Minimum city range
+              <select
+                className={selectInputClass}
+                value={filters.range}
+                onChange={(event) => updateFilter('range', event.target.value as RangeFilter)}
+              >
+                <option value="all">Any range</option>
+                <option value="50-plus">50 km or more</option>
+                <option value="80-plus">80 km or more</option>
+                <option value="150-plus">150 km or more</option>
+                <option value="250-plus">250 km or more</option>
+                <option value="350-plus">350 km or more</option>
+              </select>
+            </label>
+
+            {filters.category !== 'Bike' ? (
+              <label className="text-sm font-medium text-slate-800">
+                DC fast charging supported
+                <select
+                  className={selectInputClass}
+                  value={filters.dcCharging}
+                  onChange={(event) =>
+                    updateFilter('dcCharging', event.target.value as DcChargingFilter)
+                  }
+                >
+                  <option value="all">All</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+            ) : null}
+
+            <label className="text-sm font-medium text-slate-800">
+              Sort by
+              <select
+                className={selectInputClass}
+                value={filters.sort}
+                onChange={(event) => updateFilter('sort', event.target.value as SortOption)}
+              >
+                <option value="recommended">Default / Recommended</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="range-desc">Range: High to Low</option>
+                <option value="range-asc">Range: Low to High</option>
+              </select>
+            </label>
+
+            <div className="flex items-end">
+              <button
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-700"
+                type="button"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {isLoading ? (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -713,12 +732,6 @@ export default function VehicleCatalog() {
           </div>
         ) : vehicles.length > 0 ? (
           <div className="space-y-4">
-            <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                Showing {vehicles.length} of {totalElements} vehicles
-              </span>
-            </div>
-
             <div className="grid gap-4 lg:grid-cols-2">
               {vehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} listingSearch={listingSearch} vehicle={vehicle} />
@@ -872,4 +885,55 @@ function renderStars(rating: number) {
 
 function formatRating(rating: number) {
   return rating.toFixed(1);
+}
+
+type FilterToggleButtonProps = {
+  activeFilterCount: number;
+  isOpen: boolean;
+  onClick: () => void;
+};
+
+function FilterToggleButton({ activeFilterCount, isOpen, onClick }: FilterToggleButtonProps) {
+  const hasActiveFilters = activeFilterCount > 0;
+
+  return (
+    <button
+      aria-label={isOpen ? 'Hide filters' : 'Show filters'}
+      aria-pressed={isOpen}
+      className={[
+        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition',
+        isOpen || hasActiveFilters
+          ? 'border-brand-500 bg-brand-50 text-brand-700'
+          : 'border-slate-300 bg-white text-slate-700 hover:border-brand-500 hover:text-brand-700',
+      ].join(' ')}
+      onClick={onClick}
+      type="button"
+    >
+      <FilterIcon />
+    </button>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      focusable="false"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" />
+    </svg>
+  );
+}
+
+function getActiveFilterCount(filters: FilterValues) {
+  return (Object.keys(initialFilters) as Array<keyof FilterValues>).filter(
+    (key) => filters[key] !== initialFilters[key],
+  ).length;
 }

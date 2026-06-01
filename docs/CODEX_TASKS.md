@@ -123,8 +123,78 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   creating, and editing vehicle records through backend admin APIs and backend form options.
 - Admin Dashboard now lazy-loads as a separate production chunk so the main Vite bundle stays below
   the chunk-size warning threshold.
+- Admin Dashboard navigation now groups EV Catalogue records/reviews and charger records/feedback,
+  with simplified filter labels, top pagination, page-size controls for record management tables,
+  primary Apply buttons, centered round add buttons, and admin go-to-top access.
+- Long public/admin review and feedback text now scrolls inside its own text block, public EV
+  Catalogue and Charger Directory filters are collapsed by default, and admin grouped navigation
+  now uses compact EV/Chargers parent items with submenu buttons.
+- Public EV Catalogue and Charger Directory filter toggles now use icon-only controls in the
+  listing count row, and Admin Dashboard EV/Chargers submenus now use compact dropdown styling.
+- Admin review and charger feedback moderation tables now show readable message previews with a
+  full-message modal, and admin submenus close on item selection, outside click, and Escape.
 
 ## Completed
+
+### 2026-06-01 - Admin Moderation Message Preview and Menu Closing
+
+Updated Admin Dashboard moderation tables so vehicle reviews and charger feedback show a short,
+readable message preview instead of small nested scroll boxes. Longer submissions now open in a
+full-message modal with key metadata and wrapped, scrollable full text. Admin EV/Chargers submenu
+state now allows only one open menu, closes on submenu selection, closes from non-submenu top-level
+items, and supports outside-click and Escape closing.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
+
+### 2026-06-01 - Admin Submenu and Public Filter Toggle Cleanup
+
+Refined Admin Dashboard grouped navigation so EV and Chargers use compact dropdown-style submenus
+for Catalogue/Reviews and Catalogue/Feedback instead of block-like grouped rows. Replaced public EV
+Catalogue and Charger Directory Show/Hide filter text buttons with icon-only filter toggles aligned
+to the listing count row while keeping filters collapsed by default and preserving existing backend
+query, pagination, and detail-link behavior.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
+
+### 2026-06-01 - Review Text Overflow, Public Filters, and Admin Submenus
+
+Limited long approved public vehicle review and charger feedback text to internally scrollable
+blocks, and applied the same pattern to admin vehicle review and charger feedback moderation table
+text. Public EV Catalogue and Charger Directory filters now start collapsed behind Show/Hide
+filters controls while preserving existing filter state and backend query behavior. Admin Dashboard
+navigation now presents Get Help Leads, Contact Submissions, EV, and Chargers as compact main items,
+with EV and Chargers revealing Catalogue/Reviews and Catalogue/Feedback submenu buttons.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/ChargerDetail.tsx`
+- `src/pages/ChargerDirectory.tsx`
+- `src/pages/VehicleCatalog.tsx`
+- `src/pages/VehicleDetail.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
+
+### 2026-05-31 - Admin Dashboard Navigation and Listing Controls
+
+Grouped Admin Dashboard navigation so EV Catalogue contains EV Records and Reviews, and Chargers
+contains Charger Records and Feedback. Simplified admin filter default labels to `All`, made filter
+Apply buttons use the primary admin action style, added top pagination to paginated admin listing
+tables, added 10/20/30/50/100 page-size controls for EV and charger record management, centered the
+round add buttons, and allowed the existing go-to-top button on admin pages.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/components/Layout.tsx`
+- `src/pages/admin/AdminDashboard.tsx`
 
 ### 2026-05-31 - Admin Dashboard Chunk Split
 

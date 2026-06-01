@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 const navGroups = [
   {
@@ -208,7 +208,6 @@ export default function Layout({ children }: LayoutProps) {
 
 function GoToTopButton() {
   const [isVisible, setIsVisible] = useState(false);
-  const location = useLocation();
 
   useEffect(() => {
     function handleScroll() {
@@ -223,7 +222,7 @@ function GoToTopButton() {
     };
   }, []);
 
-  if (!isVisible || location.pathname.startsWith('/admin')) {
+  if (!isVisible) {
     return null;
   }
 
