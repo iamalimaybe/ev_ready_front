@@ -752,7 +752,7 @@ function ApprovedReviewCard({ review }: { review: PublicVehicleReview }) {
           )}
         </div>
       </div>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+      <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-white px-3 py-2 text-sm leading-6 text-slate-700">
         {formatText(review.reviewText, 'No review text provided.')}
       </p>
       <p className="mt-3 text-xs text-slate-500">Submitted {formatDate(review.createdAt)}</p>

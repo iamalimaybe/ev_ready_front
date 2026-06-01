@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import App from './App';
-import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLogin from './pages/admin/AdminLogin';
 import ChargerDetail from './pages/ChargerDetail';
 import ChargerDirectory from './pages/ChargerDirectory';
@@ -22,6 +21,12 @@ import SuitabilityCalculator from './pages/SuitabilityCalculator';
 import VehicleCatalog from './pages/VehicleCatalog';
 import VehicleDetail from './pages/VehicleDetail';
 import './styles.css';
+
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+
+const withLazyRoute = (element: React.ReactNode) => (
+  <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading...</p>}>{element}</Suspense>
+);
 
 const loadCloudflareWebAnalytics = () => {
   if (!import.meta.env.PROD || document.querySelector('script[data-cf-beacon]')) {
@@ -60,7 +65,7 @@ const router = createBrowserRouter([
       { path: 'guides/solar-ev-charging', element: <SolarEvChargingGuide /> },
       { path: 'get-help', element: <LeadCapturePlaceholder /> },
       { path: 'admin/login', element: <AdminLogin /> },
-      { path: 'admin', element: <AdminDashboard /> },
+      { path: 'admin', element: withLazyRoute(<AdminDashboard />) },
     ],
   },
 ]);
