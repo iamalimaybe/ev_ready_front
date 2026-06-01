@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, type BackendFieldErrors } from '../../utils/api';
 import { adminApiClient } from '../../utils/adminApi';
@@ -221,8 +221,15 @@ type ModerationDraft = {
   moderationReason: string;
 };
 
+type FullMessageModalState = {
+  metadata: Array<[string, string]>;
+  text: string;
+  title: string;
+} | null;
+
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100];
+const MESSAGE_PREVIEW_LENGTH = 150;
 
 const primaryButtonClass =
   'rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300';
@@ -324,6 +331,27 @@ const formatValue = (value?: string | number | null) => {
   }
 
   return String(value);
+};
+
+const getMessagePreview = (value?: string | null) => {
+  if (!value?.trim()) {
+    return {
+      isLong: false,
+      preview: 'Not listed',
+      text: '',
+    };
+  }
+
+  const normalizedValue = value.trim();
+
+  return {
+    isLong: normalizedValue.length > MESSAGE_PREVIEW_LENGTH,
+    preview:
+      normalizedValue.length > MESSAGE_PREVIEW_LENGTH
+        ? `${normalizedValue.slice(0, MESSAGE_PREVIEW_LENGTH).trimEnd()}...`
+        : normalizedValue,
+    text: normalizedValue,
+  };
 };
 
 const formatDate = (value?: string | null) => {
@@ -631,6 +659,8 @@ const AdminDashboard = () => {
   const [adminUser, setAdminUser] = useState<AdminSession | null>(null);
   const [activeSection, setActiveSection] = useState<AdminSection>('leads');
   const [openMenuGroup, setOpenMenuGroup] = useState<AdminMenuGroup>(null);
+  const adminMenuRef = useRef<HTMLDivElement | null>(null);
+  const [fullMessageModal, setFullMessageModal] = useState<FullMessageModalState>(null);
   const [leadPage, setLeadPage] = useState<PageState<Lead>>(emptyPage<Lead>());
   const [contactPage, setContactPage] = useState<PageState<ContactSubmission>>(emptyPage<ContactSubmission>());
   const [vehicleReviewPage, setVehicleReviewPage] = useState<PageState<VehicleReview>>(emptyPage<VehicleReview>());
@@ -1038,6 +1068,32 @@ const AdminDashboard = () => {
       void loadChargers(0);
     }
   }, [authState]);
+
+  useEffect(() => {
+    if (!openMenuGroup) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!adminMenuRef.current?.contains(event.target as Node)) {
+        setOpenMenuGroup(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenMenuGroup(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openMenuGroup]);
 
   const handleLogout = async () => {
     try {
@@ -1518,11 +1574,49 @@ const AdminDashboard = () => {
     }
   };
 
+  const showVehicleReviewMessage = (review: VehicleReview) => {
+    const message = getMessagePreview(review.reviewText);
+
+    setFullMessageModal({
+      title: `Vehicle review ${formatValue(review.id)}`,
+      text: message.text || 'Not listed',
+      metadata: [
+        ['Vehicle ID', formatValue(review.vehicleId)],
+        ['Rating', formatValue(review.rating)],
+        ['Display name', formatValue(review.displayName)],
+        ['City', formatValue(review.city)],
+        ['Experience', formatValue(review.experienceType)],
+        ['Status', formatStatusLabel(review.reviewStatus, vehicleReviewStatusOptions)],
+        ['Submitted', formatDate(review.createdAt)],
+      ],
+    });
+  };
+
+  const showChargerFeedbackMessage = (feedback: ChargerFeedback) => {
+    const message = getMessagePreview(feedback.message);
+
+    setFullMessageModal({
+      title: `Charger feedback ${formatValue(feedback.id)}`,
+      text: message.text || 'Not listed',
+      metadata: [
+        ['Charger ID', formatValue(feedback.chargerId)],
+        ['Charger', formatValue(feedback.chargerName)],
+        ['User experience', formatValue(feedback.rating)],
+        ['Type', formatValue(feedback.feedbackType)],
+        ['Display name', formatValue(feedback.displayName)],
+        ['City', formatValue(feedback.city)],
+        ['Contact', formatValue(feedback.reportedByContact)],
+        ['Status', formatStatusLabel(feedback.feedbackStatus, chargerFeedbackStatusOptions)],
+        ['Submitted', formatDate(feedback.createdAt)],
+      ],
+    });
+  };
+
   const isEvSectionActive = activeSection === 'vehicles' || activeSection === 'vehicleReviews';
   const isChargerSectionActive =
     activeSection === 'chargers' || activeSection === 'chargerFeedback';
-  const showEvSubmenu = openMenuGroup === 'ev' || isEvSectionActive;
-  const showChargerSubmenu = openMenuGroup === 'chargers' || isChargerSectionActive;
+  const showEvSubmenu = openMenuGroup === 'ev';
+  const showChargerSubmenu = openMenuGroup === 'chargers';
 
   if (authState === 'checking') {
     return (
@@ -1574,7 +1668,12 @@ const AdminDashboard = () => {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-start gap-3" role="tablist" aria-label="Admin sections">
+      <div
+        className="flex flex-wrap items-start gap-3"
+        ref={adminMenuRef}
+        role="tablist"
+        aria-label="Admin sections"
+      >
         <button
           className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
             activeSection === 'leads' ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700'
@@ -1602,7 +1701,9 @@ const AdminDashboard = () => {
         <div className="relative">
           <button
             className={`w-full rounded-md px-4 py-2 text-left text-sm font-semibold transition md:w-auto ${
-              showEvSubmenu ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+              isEvSectionActive || showEvSubmenu
+                ? 'bg-emerald-700 text-white'
+                : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
             onClick={() => setOpenMenuGroup((group) => (group === 'ev' ? null : 'ev'))}
             type="button"
@@ -1617,7 +1718,7 @@ const AdminDashboard = () => {
                 }`}
                 onClick={() => {
                   setActiveSection('vehicles');
-                  setOpenMenuGroup('ev');
+                  setOpenMenuGroup(null);
                   setVehicleManagementView('list');
                 }}
                 type="button"
@@ -1630,7 +1731,7 @@ const AdminDashboard = () => {
                 }`}
                 onClick={() => {
                   setActiveSection('vehicleReviews');
-                  setOpenMenuGroup('ev');
+                  setOpenMenuGroup(null);
                 }}
                 type="button"
               >
@@ -1642,7 +1743,9 @@ const AdminDashboard = () => {
         <div className="relative">
           <button
             className={`w-full rounded-md px-4 py-2 text-left text-sm font-semibold transition md:w-auto ${
-              showChargerSubmenu ? 'bg-emerald-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+              isChargerSectionActive || showChargerSubmenu
+                ? 'bg-emerald-700 text-white'
+                : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
             onClick={() =>
               setOpenMenuGroup((group) => (group === 'chargers' ? null : 'chargers'))
@@ -1659,7 +1762,7 @@ const AdminDashboard = () => {
                 }`}
                 onClick={() => {
                   setActiveSection('chargers');
-                  setOpenMenuGroup('chargers');
+                  setOpenMenuGroup(null);
                   setChargerManagementView('list');
                 }}
                 type="button"
@@ -1674,7 +1777,7 @@ const AdminDashboard = () => {
                 }`}
                 onClick={() => {
                   setActiveSection('chargerFeedback');
-                  setOpenMenuGroup('chargers');
+                  setOpenMenuGroup(null);
                 }}
                 type="button"
               >
@@ -1990,6 +2093,7 @@ const AdminDashboard = () => {
                     reviewStatus: review.reviewStatus ?? '',
                     moderationReason: review.moderationReason ?? '',
                   };
+                  const messagePreview = getMessagePreview(review.reviewText);
 
                   return (
                     <tr key={review.id}>
@@ -1997,8 +2101,19 @@ const AdminDashboard = () => {
                       <td className="px-4 py-3">{formatValue(review.vehicleId)}</td>
                       <td className="px-4 py-3">{formatValue(review.rating)}</td>
                       <td className="max-w-sm px-4 py-3">
-                        <div className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-50 px-3 py-2">
-                          {formatValue(review.reviewText)}
+                        <div className="space-y-2">
+                          <p className="whitespace-pre-wrap break-words text-slate-700">
+                            {messagePreview.preview}
+                          </p>
+                          {messagePreview.isLong ? (
+                            <button
+                              className="text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                              onClick={() => showVehicleReviewMessage(review)}
+                              type="button"
+                            >
+                              View full message
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-4 py-3">{formatValue(review.displayName)}</td>
@@ -2604,6 +2719,7 @@ const AdminDashboard = () => {
               <tbody className="divide-y divide-slate-100 align-top">
                 {chargerFeedbackPage.items.map((feedback) => {
                   const draftStatus = chargerFeedbackDrafts[String(feedback.id)] ?? feedback.feedbackStatus ?? '';
+                  const messagePreview = getMessagePreview(feedback.message);
 
                   return (
                     <tr key={feedback.id}>
@@ -2613,8 +2729,19 @@ const AdminDashboard = () => {
                       <td className="px-4 py-3">{formatValue(feedback.rating)}</td>
                       <td className="px-4 py-3">{formatValue(feedback.feedbackType)}</td>
                       <td className="max-w-sm px-4 py-3">
-                        <div className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-50 px-3 py-2">
-                          {formatValue(feedback.message)}
+                        <div className="space-y-2">
+                          <p className="whitespace-pre-wrap break-words text-slate-700">
+                            {messagePreview.preview}
+                          </p>
+                          {messagePreview.isLong ? (
+                            <button
+                              className="text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                              onClick={() => showChargerFeedbackMessage(feedback)}
+                              type="button"
+                            >
+                              View full message
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-4 py-3">{formatValue(feedback.displayName)}</td>
@@ -2688,6 +2815,12 @@ const AdminDashboard = () => {
           />
         </section>
       )}
+      {fullMessageModal ? (
+        <FullMessageModal
+          message={fullMessageModal}
+          onClose={() => setFullMessageModal(null)}
+        />
+      ) : null}
     </main>
   );
 };
@@ -3301,6 +3434,53 @@ const DetailsPanel = ({ detailError, isLoading, onClose, rows, title }: DetailsP
       ))}
     </dl>
   </aside>
+);
+
+type FullMessageModalProps = {
+  message: Exclude<FullMessageModalState, null>;
+  onClose: () => void;
+};
+
+const FullMessageModal = ({ message, onClose }: FullMessageModalProps) => (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-full-message-title"
+  >
+    <div className="flex max-h-full w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+        <div>
+          <h3 id="admin-full-message-title" className="text-lg font-bold text-slate-950">
+            {message.title}
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">Full submitted message</p>
+        </div>
+        <button
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          onClick={onClose}
+          type="button"
+        >
+          Close
+        </button>
+      </div>
+      <div className="space-y-4 overflow-y-auto p-5">
+        <dl className="grid gap-3 md:grid-cols-2">
+          {message.metadata.map(([label, value]) => (
+            <div className="rounded-md bg-slate-50 p-3" key={label}>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+              <dd className="mt-1 break-words text-sm text-slate-800">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <p className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">
+            {message.text}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
 );
 
 const Alert = ({ message }: { message: string }) => (

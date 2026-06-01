@@ -131,8 +131,23 @@ This file tracks completed and upcoming implementation tasks. Codex must update 
   now uses compact EV/Chargers parent items with submenu buttons.
 - Public EV Catalogue and Charger Directory filter toggles now use icon-only controls in the
   listing count row, and Admin Dashboard EV/Chargers submenus now use compact dropdown styling.
+- Admin review and charger feedback moderation tables now show readable message previews with a
+  full-message modal, and admin submenus close on item selection, outside click, and Escape.
 
 ## Completed
+
+### 2026-06-01 - Admin Moderation Message Preview and Menu Closing
+
+Updated Admin Dashboard moderation tables so vehicle reviews and charger feedback show a short,
+readable message preview instead of small nested scroll boxes. Longer submissions now open in a
+full-message modal with key metadata and wrapped, scrollable full text. Admin EV/Chargers submenu
+state now allows only one open menu, closes on submenu selection, closes from non-submenu top-level
+items, and supports outside-click and Escape closing.
+
+Changed files:
+
+- `docs/CODEX_TASKS.md`
+- `src/pages/admin/AdminDashboard.tsx`
 
 ### 2026-06-01 - Admin Submenu and Public Filter Toggle Cleanup
 
