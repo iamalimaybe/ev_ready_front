@@ -1438,6 +1438,9 @@ Changed files:
 
 ## Next Tasks
 
+- [x] Fix public route canonical and OpenGraph URLs
+  - Update the SPA head on route changes so public pages declare their own canonical URL.
+  - Keep `og:url` aligned with the current public route instead of the homepage fallback.
 - [x] Scaffold React + Vite + TypeScript + Tailwind CSS with React Router.
 - [x] Add static demo data and calculator utility functions.
 - [x] Build Suitability Calculator form UI.
