@@ -401,3 +401,21 @@ Implications:
   batches.
 - Listing filter state should be represented in URL query parameters rather than browser storage.
 - Detail pages remain the preferred place for deeper information and review access.
+
+## 2026-06-07 - Route-Specific Public Canonicals
+
+Decision:
+
+- Keep the static homepage canonical as the HTML fallback, then update `canonical` and `og:url`
+  from the React route pathname after the app mounts.
+
+Reason:
+
+- EVReady Pakistan is a Vite SPA, so public routes share the same `index.html`; without a
+  route-aware head update, rendered pages like `/chargers` declare the homepage as canonical.
+
+Implications:
+
+- Public routes should canonicalize to `https://evready.pk/` for the homepage and
+  `https://evready.pk/{path}` for route pages, excluding query strings and hash fragments.
+- Route-specific titles/descriptions remain a separate future SEO improvement.
