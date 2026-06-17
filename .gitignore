@@ -28,3 +28,10 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Local AI assistant / Codex workflow files
+AGENTS.md
+docs/CODEX_TASKS.md
+.codex/
+codex/
+.codexrc
