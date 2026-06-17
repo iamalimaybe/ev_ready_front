@@ -71,9 +71,7 @@ details before travel.
 ## Documentation
 
 - [Product Spec](docs/PRODUCT_SPEC.md)
-- [Codex Tasks](docs/CODEX_TASKS.md)
 - [Decisions](docs/DECISIONS.md)
-- [Agent Guidance](AGENTS.md)
 
 ## Development
 
