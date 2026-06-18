@@ -3,7 +3,21 @@ const configuredRecommenderBaseUrl = import.meta.env.VITE_RECOMMENDER_API_BASE_U
   '',
 );
 
-export const RECOMMENDER_API_BASE_URL = configuredRecommenderBaseUrl || 'http://localhost:8081';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, '');
+
+const gatewayApiBaseUrl = configuredApiBaseUrl || 'http://localhost:8080';
+
+const isDirectRecommenderMode = Boolean(configuredRecommenderBaseUrl);
+
+export const RECOMMENDER_API_BASE_URL = configuredRecommenderBaseUrl || gatewayApiBaseUrl;
+
+const RECOMMENDATION_API_PATH = isDirectRecommenderMode
+  ? '/api/v1/recommendations'
+  : '/api/v1/ai/recommendations';
+
+const RECOMMENDER_HEALTH_PATH = isDirectRecommenderMode
+  ? '/actuator/health'
+  : '/api/v1/ai/recommendations/health';
 
 export type RecommenderHealthStatus = 'UP' | 'DOWN';
 
@@ -67,7 +81,7 @@ export type RecommenderErrorResponse = {
   fieldErrors?: RecommenderFieldError[] | Record<string, string>;
 };
 
-type ActuatorHealthResponse = {
+type RecommenderHealthResponse = {
   status?: string;
 };
 
@@ -154,14 +168,17 @@ const request = async <T>(method: 'GET' | 'POST', path: string, body?: unknown) 
 
 export const recommenderApi = {
   createRecommendation: (body: RecommendationRequest) =>
-    request<RecommendationResponse>('POST', '/api/v1/recommendations', body),
+    request<RecommendationResponse>('POST', RECOMMENDATION_API_PATH, body),
 
   getRecommendation: (id: number) =>
-    request<RecommendationResponse>('GET', `/api/v1/recommendations/${encodeURIComponent(id)}`),
+    request<RecommendationResponse>(
+      'GET',
+      `${RECOMMENDATION_API_PATH}/${encodeURIComponent(id)}`,
+    ),
 
   async getHealth(): Promise<RecommenderHealthStatus> {
     try {
-      const response = await fetch(`${RECOMMENDER_API_BASE_URL}/actuator/health`, {
+      const response = await fetch(buildUrl(RECOMMENDER_HEALTH_PATH), {
         method: 'GET',
         headers: {
           Accept: 'application/json',
@@ -172,7 +189,7 @@ export const recommenderApi = {
         return 'DOWN';
       }
 
-      const data = (await response.json()) as ActuatorHealthResponse;
+      const data = (await response.json()) as RecommenderHealthResponse;
 
       return data.status === 'UP' ? 'UP' : 'DOWN';
     } catch {

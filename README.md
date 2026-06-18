@@ -45,7 +45,7 @@ Public frontend tools include:
 3. Home Charging Cost Estimator
 4. Solar EV Charging Estimator
 5. EV car suitability and ownership fit calculator
-6. AI EV Recommendation page using async recommender polling
+6. AI EV Recommendation page using backend gateway routing and async recommender polling
 7. Route feasibility estimator
 8. EV Catalogue using backend vehicle data
 9. Charger Directory using backend charger data and backend city/type options
@@ -76,7 +76,7 @@ Backend-backed flows include:
 * Charger feedback submissions
 * Approved charger feedback
 * Protected admin workflows
-* AI recommendation requests in local integration through the separate recommender service
+* AI recommendation requests through the existing EVReady backend gateway
 
 ## Admin UI Scope
 
@@ -149,6 +149,8 @@ Users should still verify:
 
 The recommendation page uses an async flow. It creates a recommendation run, polls for the stored result, and displays warnings when data is uncertain.
 
+The frontend supports backend gateway routing so the browser does not need to call the recommender service directly in production-shaped usage.
+
 ### Reviews And Feedback
 
 Vehicle reviews and charger feedback are user-submitted and moderated before public display.
@@ -187,31 +189,64 @@ For production builds:
 VITE_API_BASE_URL=https://api.evready.pk
 ```
 
-For local AI recommender page development, the frontend can call the separate recommender service with:
+### AI Recommendation API Routing
+
+The recommendation page supports two routing modes.
+
+Default mode uses the existing EVReady backend gateway:
+
+```text
+Frontend -> EVReady Backend -> AI Recommender Service -> Ollama
+```
+
+This is the production-safe path because the browser does not call the recommender service directly.
+
+When `VITE_RECOMMENDER_API_BASE_URL` is not set, the frontend uses:
+
+```text
+VITE_API_BASE_URL
+```
+
+and calls the backend gateway endpoints:
+
+```text
+POST /api/v1/ai/recommendations
+GET /api/v1/ai/recommendations/{id}
+GET /api/v1/ai/recommendations/health
+```
+
+Local direct recommender mode is available only when explicitly configured:
 
 ```text
 VITE_RECOMMENDER_API_BASE_URL=http://localhost:8081
 ```
 
-The AI recommender API is asynchronous:
+When this variable is set, the frontend calls the recommender service directly for local development:
+
+```text
+Frontend -> AI Recommender Service -> Ollama
+```
+
+The direct recommender service endpoints are:
 
 ```text
 POST /api/v1/recommendations
 GET /api/v1/recommendations/{id}
+GET /actuator/health
 ```
 
-The page submits a recommendation request, receives a queued run ID, then polls the stored recommendation until it reaches a final status.
+`VITE_RECOMMENDER_API_BASE_URL` should not be used for production builds.
 
-Expected local recommender flow:
+The AI recommender API is asynchronous. The page submits a recommendation request, receives a queued run ID, then polls the stored recommendation until it reaches a final status.
+
+Expected recommendation flow:
 
 ```text
-POST /api/v1/recommendations -> QUEUED
-GET /api/v1/recommendations/{id} -> QUEUED, RUNNING, ANSWERED, FAILED, TIMED_OUT, etc.
+POST recommendation request -> QUEUED
+GET recommendation run by ID -> QUEUED, RUNNING, ANSWERED, FAILED, TIMED_OUT, etc.
 ```
 
 The page stores only the active in-progress recommendation ID in browser localStorage so a refresh can resume polling. It clears the stored item when a final status is reached, and also uses an expiry to avoid stale local states.
-
-For production, the recommender service should not be treated as an unrestricted public browser API. The safer production direction is for the public frontend to call the existing EVReady backend or a controlled gateway, which can then call the recommender service internally.
 
 `VITE_*` variables are bundled into frontend output and must never contain secrets.
 
@@ -235,20 +270,38 @@ Build for production:
 npm run build
 ```
 
-For local AI recommender page development, start the frontend with:
+For local recommendation page development through the backend gateway:
 
 ```powershell
+$env:VITE_API_BASE_URL="http://localhost:8080"
+Remove-Item Env:\VITE_RECOMMENDER_API_BASE_URL -ErrorAction SilentlyContinue
+npm run dev
+```
+
+For direct recommender service testing only:
+
+```powershell
+$env:VITE_API_BASE_URL="http://localhost:8080"
 $env:VITE_RECOMMENDER_API_BASE_URL="http://localhost:8081"
 npm run dev
 ```
 
-Expected local services for the recommendation page:
+Expected local services for the recommendation page in gateway mode:
 
 ```text
 EVReady backend: http://localhost:8080
 EVReady AI Recommender Service: http://localhost:8081
 Ollama: http://localhost:11434
 Frontend dev server: http://localhost:5173
+```
+
+Gateway mode request path:
+
+```text
+Frontend: http://localhost:5173
+  -> EVReady backend: http://localhost:8080
+  -> AI Recommender Service: http://localhost:8081
+  -> Ollama: http://localhost:11434
 ```
 
 ## Environment Variables
@@ -259,19 +312,19 @@ Example frontend environment variable:
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
-Optional local AI recommender variable:
-
-```text
-VITE_RECOMMENDER_API_BASE_URL=http://localhost:8081
-```
-
 Production value:
 
 ```text
 VITE_API_BASE_URL=https://api.evready.pk
 ```
 
-`VITE_RECOMMENDER_API_BASE_URL` is for local AI recommender integration. Do not use frontend environment variables for secrets. If the recommender is integrated into production, prefer routing through the existing backend or a controlled gateway instead of exposing the recommender as an unrestricted public API.
+Optional local-only direct AI recommender variable:
+
+```text
+VITE_RECOMMENDER_API_BASE_URL=http://localhost:8081
+```
+
+`VITE_RECOMMENDER_API_BASE_URL` is for local AI recommender service testing only. Do not use it for production builds.
 
 Do not put secrets in frontend environment variables. Anything exposed through `VITE_*` can be visible in the browser bundle.
 
@@ -382,6 +435,7 @@ Recommended reading order:
 * Do not put secrets in `VITE_*` variables.
 * Do not expose the AI recommender service as an unrestricted public model-generation endpoint.
 * Use backend-side controls for production AI recommendation access, rate limits, and abuse protection.
+* Route production AI recommendation access through the existing backend gateway or another controlled backend boundary.
 * Do not publish the full repository as a public web directory.
 * Treat lead/contact data as sensitive operational data.
 * Keep public forms clear about consent and submission purpose.
