@@ -4,7 +4,7 @@ EVReady Pakistan is a free Pakistan-focused EV savings and charging-cost utility
 
 The product helps people in Pakistan estimate whether switching from petrol to an EV bike or EV car can save money and make practical ownership sense.
 
-The frontend is built as a lightweight public utility with calculators, catalogue browsing, charger information, guides, lead capture, contact submissions, and protected internal admin screens.
+The frontend is built as a lightweight public utility with calculators, catalogue browsing, charger information, guides, lead capture, contact submissions, AI-assisted recommendation support, and protected internal admin screens.
 
 ## Tech Stack
 
@@ -34,7 +34,7 @@ The product is not intended to be:
 * A payment platform
 * A live charger availability system
 * A dealer-management platform
-* A guarantee of vehicle prices, specs, charger status, or route feasibility
+* A guarantee of vehicle prices, specs, charger status, route feasibility, or AI recommendation accuracy
 
 ## Current Implemented Tools
 
@@ -45,19 +45,20 @@ Public frontend tools include:
 3. Home Charging Cost Estimator
 4. Solar EV Charging Estimator
 5. EV car suitability and ownership fit calculator
-6. Route feasibility estimator
-7. EV Catalogue using backend vehicle data
-8. Charger Directory using backend charger data and backend city/type options
-9. Dedicated EV detail pages
-10. Dedicated charger detail pages
-11. Public vehicle review submission
-12. Approved-only public vehicle review display
-13. Public charger feedback submission
-14. Approved-only public charger feedback display
-15. Static guides/content pages
-16. Get Help lead capture submission
-17. Contact Us submission
-18. Protected internal admin dashboard
+6. AI EV Recommendation page using async recommender polling
+7. Route feasibility estimator
+8. EV Catalogue using backend vehicle data
+9. Charger Directory using backend charger data and backend city/type options
+10. Dedicated EV detail pages
+11. Dedicated charger detail pages
+12. Public vehicle review submission
+13. Approved-only public vehicle review display
+14. Public charger feedback submission
+15. Approved-only public charger feedback display
+16. Static guides/content pages
+17. Get Help lead capture submission
+18. Contact Us submission
+19. Protected internal admin dashboard
 
 The calculators remain frontend-side where users manually enter assumptions.
 
@@ -75,6 +76,7 @@ Backend-backed flows include:
 * Charger feedback submissions
 * Approved charger feedback
 * Protected admin workflows
+* AI recommendation requests in local integration through the separate recommender service
 
 ## Admin UI Scope
 
@@ -128,6 +130,25 @@ Users should verify before travel:
 
 Reported charger status should not be treated as proof that a charger is working, available, unoccupied, compatible, or priced as shown at the time of travel.
 
+### AI Recommendations
+
+AI recommendation results are decision-support only.
+
+The AI recommender should stay grounded in trusted EVReady catalogue data. It should not invent vehicle records, prices, ranges, battery values, charger availability, dealer stock, route feasibility, booking availability, or field-verification claims.
+
+Users should still verify:
+
+* Vehicle price
+* Vehicle specs
+* Warranty
+* Dealer availability
+* Charger access
+* Connector compatibility
+* Route distance
+* Charger status before intercity travel
+
+The recommendation page uses an async flow. It creates a recommendation run, polls for the stored result, and displays warnings when data is uncertain.
+
 ### Reviews And Feedback
 
 Vehicle reviews and charger feedback are user-submitted and moderated before public display.
@@ -166,6 +187,32 @@ For production builds:
 VITE_API_BASE_URL=https://api.evready.pk
 ```
 
+For local AI recommender page development, the frontend can call the separate recommender service with:
+
+```text
+VITE_RECOMMENDER_API_BASE_URL=http://localhost:8081
+```
+
+The AI recommender API is asynchronous:
+
+```text
+POST /api/v1/recommendations
+GET /api/v1/recommendations/{id}
+```
+
+The page submits a recommendation request, receives a queued run ID, then polls the stored recommendation until it reaches a final status.
+
+Expected local recommender flow:
+
+```text
+POST /api/v1/recommendations -> QUEUED
+GET /api/v1/recommendations/{id} -> QUEUED, RUNNING, ANSWERED, FAILED, TIMED_OUT, etc.
+```
+
+The page stores only the active in-progress recommendation ID in browser localStorage so a refresh can resume polling. It clears the stored item when a final status is reached, and also uses an expiry to avoid stale local states.
+
+For production, the recommender service should not be treated as an unrestricted public browser API. The safer production direction is for the public frontend to call the existing EVReady backend or a controlled gateway, which can then call the recommender service internally.
+
 `VITE_*` variables are bundled into frontend output and must never contain secrets.
 
 ## Development
@@ -188,6 +235,22 @@ Build for production:
 npm run build
 ```
 
+For local AI recommender page development, start the frontend with:
+
+```powershell
+$env:VITE_RECOMMENDER_API_BASE_URL="http://localhost:8081"
+npm run dev
+```
+
+Expected local services for the recommendation page:
+
+```text
+EVReady backend: http://localhost:8080
+EVReady AI Recommender Service: http://localhost:8081
+Ollama: http://localhost:11434
+Frontend dev server: http://localhost:5173
+```
+
 ## Environment Variables
 
 Example frontend environment variable:
@@ -196,11 +259,19 @@ Example frontend environment variable:
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
+Optional local AI recommender variable:
+
+```text
+VITE_RECOMMENDER_API_BASE_URL=http://localhost:8081
+```
+
 Production value:
 
 ```text
 VITE_API_BASE_URL=https://api.evready.pk
 ```
+
+`VITE_RECOMMENDER_API_BASE_URL` is for local AI recommender integration. Do not use frontend environment variables for secrets. If the recommender is integrated into production, prefer routing through the existing backend or a controlled gateway instead of exposing the recommender as an unrestricted public API.
 
 Do not put secrets in frontend environment variables. Anything exposed through `VITE_*` can be visible in the browser bundle.
 
@@ -256,6 +327,7 @@ SEO metadata must avoid claims about:
 * Guaranteed vehicle specs
 * Guaranteed route feasibility
 * Official ratings
+* Guaranteed AI recommendation accuracy
 * Guaranteed SEO outcomes
 
 ## Branch Strategy
@@ -267,8 +339,10 @@ SEO metadata must avoid claims about:
 
   * `feature/*` to `develop`
   * `develop` to `main` for production deployment
-* Avoid committing directly to `main`.
-* Avoid committing directly to `develop` unless intentionally handling integration work.
+
+Avoid committing directly to `main`.
+
+Avoid committing directly to `develop` unless intentionally handling integration work.
 
 ## Documentation
 
@@ -297,6 +371,7 @@ Recommended reading order:
 * Keep calculator assumptions visible.
 * Keep public flows lightweight and understandable.
 * Keep charger information cautious unless reliable live integrations are added.
+* Keep AI recommendations grounded in catalogue data and clear about uncertainty.
 * Keep monetization future-facing through ads, sponsored placements, and qualified leads, not paid subscriptions for normal users.
 
 ## Security And Privacy Notes
@@ -305,6 +380,8 @@ Recommended reading order:
 * Do not expose admin links in public navigation.
 * Do not store admin credentials in browser storage.
 * Do not put secrets in `VITE_*` variables.
+* Do not expose the AI recommender service as an unrestricted public model-generation endpoint.
+* Use backend-side controls for production AI recommendation access, rate limits, and abuse protection.
 * Do not publish the full repository as a public web directory.
 * Treat lead/contact data as sensitive operational data.
 * Keep public forms clear about consent and submission purpose.

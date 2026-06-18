@@ -419,3 +419,27 @@ Implications:
 - Public routes should canonicalize to `https://evready.pk/` for the homepage and
   `https://evready.pk/{path}` for route pages, excluding query strings and hash fragments.
 - Route-specific titles/descriptions remain a separate future SEO improvement.
+
+## 2026-06-18 - AI Recommender Health Check Before Page Use
+
+Decision:
+
+- The AI EV Recommendation page checks the separate EVReady AI Recommender Service health endpoint before showing the recommendation form.
+- The frontend uses the recommender service Actuator health endpoint for local integration readiness checks.
+- If the recommender service is unavailable, the page shows a friendly page-level fallback instead of a broken form.
+- The page keeps checking periodically and recovers automatically when the recommender service becomes available again.
+
+Reason:
+
+- The AI recommender is a separate microservice from the main EVReady backend and can be unavailable while the rest of the public EVReady frontend still works.
+- Checking health before form use makes the microservice boundary visible, safer, and easier to explain in portfolio discussions.
+- A page-level fallback avoids confusing users with failed recommendation requests when the recommender service is offline.
+
+Implications:
+
+- The recommender service must expose only the required health endpoint for this frontend check.
+- Actuator exposure should stay limited to `health`.
+- Actuator CORS must explicitly allow the local frontend origin for development.
+- Frontend health checks are a UX/readiness feature, not production security.
+- Production recommender access should still route through the existing backend or a controlled gateway before public deployment.
+- This health check proves the recommender service is reachable and reporting `UP`; it does not prove model generation quality or Ollama response quality.
