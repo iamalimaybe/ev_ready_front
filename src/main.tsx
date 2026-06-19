@@ -20,6 +20,7 @@ import SolarEvChargingEstimator from './pages/SolarEvChargingEstimator';
 import SuitabilityCalculator from './pages/SuitabilityCalculator';
 import VehicleCatalog from './pages/VehicleCatalog';
 import VehicleDetail from './pages/VehicleDetail';
+import RecommendationPage from './pages/RecommendationPage';
 import './styles.css';
 
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
       { path: 'home-charging-cost', element: <HomeChargingCostEstimator /> },
       { path: 'solar-ev-charging', element: <SolarEvChargingEstimator /> },
       { path: 'suitability', element: <SuitabilityCalculator /> },
+      { path: 'recommend', element: <RecommendationPage /> },
       { path: 'cost-comparison', element: <CostComparison /> },
       { path: 'route-feasibility', element: <RouteFeasibility /> },
       { path: 'vehicles', element: <VehicleCatalog /> },

@@ -111,6 +111,21 @@ export default function Layout({ children }: LayoutProps) {
               Home
             </NavLink>
 
+            <NavLink
+              to="/recommend"
+              onClick={closeNavigation}
+              className={({ isActive }) =>
+                [
+                  'rounded-md px-3 py-2 text-sm font-medium transition',
+                  isActive
+                    ? 'bg-brand-700 text-white'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950',
+                ].join(' ')
+              }
+            >
+              AI EV Recommendation
+            </NavLink>
+
             {navGroups.map((group) => (
               <div key={group.label} className="relative">
                 <button
