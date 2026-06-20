@@ -328,6 +328,24 @@ VITE_RECOMMENDER_API_BASE_URL=http://localhost:8081
 
 Do not put secrets in frontend environment variables. Anything exposed through `VITE_*` can be visible in the browser bundle.
 
+## CI
+
+GitHub Actions runs the frontend build workflow for pushes and pull requests.
+
+Current CI check:
+
+```text
+Build and test
+```
+
+The workflow installs dependencies with npm ci and verifies the production build with:
+
+```powershell
+npm run build
+```
+
+This check is required by the repository branch rules before protected branches can be updated.
+
 ## Production Deployment
 
 The frontend is deployed separately from the backend.
